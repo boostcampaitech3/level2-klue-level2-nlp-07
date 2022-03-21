@@ -1,0 +1,15 @@
+.*
+*.pth
+*.pt
+*.csv
+*.json
+*.gz
+**/model/
+**/__pycache__/
+**/wandb/
+**/.idea/
+**/logs/
+**/results/
+**/fairseq/
+**/best_model/
+**/prediction/
