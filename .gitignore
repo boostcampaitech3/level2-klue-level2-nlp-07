@@ -1,6 +1,5 @@
 .*
 !.gitignore
-!.github/PULL_REQUEST_TEMPLATE.md
 *.pth
 *.pt
 *.csv
