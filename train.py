@@ -7,7 +7,10 @@ import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
+import wandb
+import argparse
 
+wandb.init(project="baseline", entity="growing_sesame")
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -65,27 +68,33 @@ def label_to_num(label):
   
   return num_label
 
-def train():
+def train(args):
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   MODEL_NAME = "klue/bert-base"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
-  # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
+  dataset = load_data("../dataset/train/train.csv")
+
+  split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+
+  for train_idx, test_idx in split.split(dataset, dataset["label"]):
+      train_dataset = dataset.loc[train_idx]
+      dev_dataset = dataset.loc[test_idx]
 
   train_label = label_to_num(train_dataset['label'].values)
-  # dev_label = label_to_num(dev_dataset['label'].values)
+  dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
   tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+  RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
+  #RE_train_dataset, RE_dev_dataset = RE_train_dataset.split_dataset()
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
@@ -117,21 +126,33 @@ def train():
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
     eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True 
+    load_best_model_at_end = True,
+    report_to="wandb",
+    run_name=args.run_name
   )
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_train_dataset,             # evaluation dataset
+    eval_dataset=RE_dev_dataset,             # evaluation dataset
     compute_metrics=compute_metrics         # define metrics function
   )
 
   # train model
   trainer.train()
+  wandb.finish()
+
   model.save_pretrained('./best_model')
-def main():
-  train()
+def main(args):
+  train(args)
 
 if __name__ == '__main__':
-  main()
+  parser = argparse.ArgumentParser()
+  
+  # model dir
+  parser.add_argument('--run_name', type=str, default="baseline")
+  args = parser.parse_args()
+  
+  wandb.run.name = args.run_name
+  
+  main(args)
