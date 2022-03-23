@@ -23,8 +23,10 @@ def preprocessing_dataset(dataset):
   subject_entity = []
   object_entity = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
+    dict_i = eval(i) # str을 코드화
+    dict_j = eval(j)
+    i = dict_i['word'] # subj
+    j = dict_j['word'] # obj
 
     subject_entity.append(i)
     object_entity.append(j)
