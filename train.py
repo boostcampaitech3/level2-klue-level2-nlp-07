@@ -80,7 +80,7 @@ def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
-  MODEL_NAME = "klue/bert-base"
+  MODEL_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
@@ -111,7 +111,7 @@ def train():
   model.to(device)
 
   wandb.init(project="Model Test", entity="growing_sesame")
-  wandb.run.name = 'klue/bert-base 500step epoch10'
+  wandb.run.name = 'klue/roberta-large epoch 4 split 9/1'
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
@@ -119,7 +119,7 @@ def train():
     output_dir='./results',          # output directory
     save_total_limit=10,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=10,              # total number of training epochs
+    num_train_epochs=4,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
     per_device_train_batch_size=16,  # batch size per device during training
     per_device_eval_batch_size=16,   # batch size for evaluation

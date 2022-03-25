@@ -5,6 +5,7 @@
 *.csv
 *.json
 *.gz
+*.out
 **/model/
 **/__pycache__/
 **/wandb/
