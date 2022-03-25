@@ -108,7 +108,6 @@ def train(args):
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
   RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
-  #RE_train_dataset, RE_dev_dataset = RE_train_dataset.split_dataset()
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
@@ -199,25 +198,6 @@ if __name__ == '__main__':
   parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: )")
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
 
-
-  # parser.add_argument("--", type=int, default=, help=" (default: )")
-  # parser.add_argument("--", type=str, default="", help=" (default: )")
-
-  # parser.add_argument("--epochs", type=int, default=30, help="number of epochs to train (default: 1)")
-  # parser.add_argument("--augmentation", type=str, default="CustomAugmentation", help="data augmentation type (default: CustomAugmentation)")
-  # parser.add_argument("--resize", nargs="+", type=list, default=[384, 384], help="resize size for image when training")
-  # parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help="resize size for image when training")
-  # parser.add_argument("--batch_size", type=int, default=64, help="input batch size for training (default: 64)")
-  # parser.add_argument("--valid_batch_size", type=int, default=1000, help="input batch size for validing (default: 1000)")
-  # parser.add_argument("--model", type=str, default="BaseModel", help="model type (default: BaseModel)")
-  # parser.add_argument("--optimizer", type=str, default="SGD", help="optimizer type (default: SGD)")
-  # parser.add_argument("--lr", type=float, default=1e-3, help="learning rate (default: 1e-3)")
-  # parser.add_argument("--val_ratio", type=float, default=0.2, help="ratio for validaton (default: 0.2)")
-  # parser.add_argument("--criterion", type=str, default="f1", help="criterion type (default: f1)")
-  # parser.add_argument("--lr_decay_step", type=int, default=20, help="learning rate scheduler deacy step (default: 20)")
-  # parser.add_argument("--log_interval", type=int, default=20, help="how many batches to wait before logging training status")
-  # parser.add_argument("--name", default="exp", help="model save at {SM_MODEL_DIR}/{name}")
-  # parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data_edit/train/images"))
 
   
   
