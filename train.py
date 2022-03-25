@@ -2,19 +2,13 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
+import random
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from load_data import *
 import wandb
-import argparse
-import random
-from torch.utils.data import DataLoader
-from torch.optim import AdamW
-from model import *
-
-wandb.init(project="baseline", entity="growing_sesame")
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -24,8 +18,7 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = False
     np.random.seed(seed)
     random.seed(seed)
-    
-    
+
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
     label_list = ['no_relation', 'org:top_members/employees', 'org:members',
@@ -82,13 +75,15 @@ def label_to_num(label):
   
   return num_label
 
+
 def train(args):
+  seed_everything(42)
   # load model and tokenizer
-  #MODEL_NAME = "bert-base-uncased"
-  #MODEL_NAME = "klue/bert-base"
+  # MODEL_NAME = "bert-base-uncased"
+  # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
   MODEL_NAME = "klue/roberta-large"
-  #MODEL_NAME = "monologg/koelectra-base-v2-discriminator"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+
 
   # load dataset
   dataset = load_data("../dataset/train/train.csv")
@@ -99,12 +94,14 @@ def train(args):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
 
+
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer, args.tokenize)
-  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer, args.tokenize)
+  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
+  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
@@ -123,12 +120,15 @@ def train(args):
 
   model.parameters
   model.to(device)
+
+  wandb.init(project="Model Test", entity="growing_sesame")
+  wandb.run.name = 'klue/roberta-large epoch 4 split 9/1'
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
     output_dir='./results',          # output directory
-    save_total_limit=5,              # number of total save model.
+    save_total_limit=10,              # number of total save model.
     save_steps=500,                 # model saving step.
     num_train_epochs=4,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
@@ -144,8 +144,7 @@ def train(args):
                                 # `epoch`: Evaluate every end of epoch.
     eval_steps = 500,            # evaluation step.
     load_best_model_at_end = True,
-    report_to="wandb",
-    run_name=args.run_name
+    report_to="wandb"
   )
   
   trainer = Trainer(
@@ -162,6 +161,7 @@ def train(args):
   wandb.finish()
 
   model.save_pretrained('./best_model')
+
 def main(args):
   train(args)
 
