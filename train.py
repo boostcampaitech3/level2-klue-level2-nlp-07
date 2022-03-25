@@ -6,7 +6,7 @@ import random
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from load_data import *
 import wandb
 
@@ -75,17 +75,25 @@ def label_to_num(label):
   
   return num_label
 
-def train():
+
+def train(args):
   seed_everything(42)
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
   MODEL_NAME = "klue/roberta-large"
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+
 
   # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
-  dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
+  dataset = load_data("../dataset/train/train.csv")
+
+  split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=42)
+
+  for train_idx, test_idx in split.split(dataset, dataset["label"]):
+      train_dataset = dataset.loc[train_idx]
+      dev_dataset = dataset.loc[test_idx]
+
 
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
@@ -94,10 +102,12 @@ def train():
   tokenized_train = tokenized_dataset(train_dataset, tokenizer)
   tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
 
+
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
   RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 
+  #RE_train_dataset, RE_dev_dataset = RE_train_dataset.split_dataset()
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
@@ -105,8 +115,9 @@ def train():
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
+  #model = Bert(MODEL_NAME, config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  print(model.config)
+
   model.parameters
   model.to(device)
 
@@ -135,6 +146,7 @@ def train():
     load_best_model_at_end = True,
     report_to="wandb"
   )
+  
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
@@ -143,13 +155,26 @@ def train():
     compute_metrics=compute_metrics         # define metrics function
   )
 
+
   # train model
   trainer.train()
-  model.save_pretrained('./best_model')
   wandb.finish()
 
-def main():
-  train()
+  model.save_pretrained('./best_model')
+
+def main(args):
+  train(args)
 
 if __name__ == '__main__':
-  main()
+  seed_everything(42)
+  parser = argparse.ArgumentParser()
+  
+  # model dir
+  parser.add_argument('--run_name', type=str, default="baseline")
+  parser.add_argument('--tokenize', type=str, default="punct")
+  
+  args = parser.parse_args()
+  
+  wandb.run.name = args.run_name
+  
+  main(args)
