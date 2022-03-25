@@ -5,13 +5,27 @@ import torch
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from load_data import *
 import wandb
 import argparse
+import random
+from torch.utils.data import DataLoader
+from torch.optim import AdamW
+from model import *
 
 wandb.init(project="baseline", entity="growing_sesame")
 
+def seed_everything(seed):
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # if use multi-GPU
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    np.random.seed(seed)
+    random.seed(seed)
+    
+    
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
     label_list = ['no_relation', 'org:top_members/employees', 'org:members',
@@ -70,14 +84,16 @@ def label_to_num(label):
 
 def train(args):
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  MODEL_NAME = "klue/bert-base"
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  #MODEL_NAME = "bert-base-uncased"
+  #MODEL_NAME = "klue/bert-base"
+  MODEL_NAME = "klue/roberta-large"
+  #MODEL_NAME = "monologg/koelectra-base-v2-discriminator"
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
   # load dataset
   dataset = load_data("../dataset/train/train.csv")
 
-  split = StratifiedShuffleSplit(n_splits=1, test_size=0.2, random_state=42)
+  split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=42)
 
   for train_idx, test_idx in split.split(dataset, dataset["label"]):
       train_dataset = dataset.loc[train_idx]
@@ -87,8 +103,8 @@ def train(args):
   dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+  tokenized_train = tokenized_dataset(train_dataset, tokenizer, args.tokenize)
+  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer, args.tokenize)
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, train_label)
@@ -102,8 +118,9 @@ def train(args):
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
+  #model = Bert(MODEL_NAME, config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  print(model.config)
+
   model.parameters
   model.to(device)
   
@@ -113,7 +130,7 @@ def train(args):
     output_dir='./results',          # output directory
     save_total_limit=5,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
+    num_train_epochs=4,              # total number of training epochs
     learning_rate=5e-5,               # learning_rate
     per_device_train_batch_size=16,  # batch size per device during training
     per_device_eval_batch_size=16,   # batch size for evaluation
@@ -130,6 +147,7 @@ def train(args):
     report_to="wandb",
     run_name=args.run_name
   )
+  
   trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
@@ -137,6 +155,7 @@ def train(args):
     eval_dataset=RE_dev_dataset,             # evaluation dataset
     compute_metrics=compute_metrics         # define metrics function
   )
+
 
   # train model
   trainer.train()
@@ -147,10 +166,13 @@ def main(args):
   train(args)
 
 if __name__ == '__main__':
+  seed_everything(42)
   parser = argparse.ArgumentParser()
   
   # model dir
   parser.add_argument('--run_name', type=str, default="baseline")
+  parser.add_argument('--tokenize', type=str, default="punct")
+  
   args = parser.parse_args()
   
   wandb.run.name = args.run_name
