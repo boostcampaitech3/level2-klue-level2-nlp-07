@@ -9,6 +9,7 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from load_data import *
 import wandb
+import argparse
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -77,18 +78,18 @@ def label_to_num(label):
 
 
 def train(args):
-  seed_everything(42)
+  seed_everything(args.seed)
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
-  MODEL_NAME = "klue/roberta-large"
+  MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
 
   # load dataset
-  dataset = load_data("../dataset/train/train.csv")
+  dataset = load_data(args.train_data)
 
-  split = StratifiedShuffleSplit(n_splits=1, test_size=0.1, random_state=42)
+  split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
 
   for train_idx, test_idx in split.split(dataset, dataset["label"]):
       train_dataset = dataset.loc[train_idx]
@@ -113,7 +114,7 @@ def train(args):
   print(device)
   # setting model hyperparameter
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = 30
+  model_config.num_labels = args.num_labels
 
   #model = Bert(MODEL_NAME, config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
@@ -121,30 +122,30 @@ def train(args):
   model.parameters
   model.to(device)
 
-  wandb.init(project="Model Test", entity="growing_sesame")
-  wandb.run.name = 'klue/roberta-large epoch 4 split 9/1'
+  wandb.init(project=args.project_name, entity=args.entity_name)
+  wandb.run.name = args.run_name
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir='./results',          # output directory
-    save_total_limit=10,              # number of total save model.
-    save_steps=500,                 # model saving step.
-    num_train_epochs=4,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=16,   # batch size for evaluation
-    warmup_steps=500,                # number of warmup steps for learning rate scheduler
-    weight_decay=0.01,               # strength of weight decay
-    logging_dir='./logs',            # directory for storing logs
-    logging_steps=100,              # log saving step.
-    evaluation_strategy='steps', # evaluation strategy to adopt during training
+    output_dir=args.output_dir,          # output directory
+    save_total_limit=args.save_total_limit,              # number of total save model.
+    save_steps=args.save_steps,            # model saving step.
+    num_train_epochs=args.num_train_epochs,         # total number of training epochs
+    learning_rate=args.learning_rate, # learning rate
+    per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
+    per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
+    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    weight_decay=args.weight_decay,               # strength of weight decay
+    logging_dir=args.logging_dir,            # directory for storing logs
+    logging_steps=args.logging_steps,              # log saving step.
+    evaluation_strategy=args.evaluation_strategy, # evaluation strategy to adopt during training
                                 # `no`: No evaluation during training.
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
-    eval_steps = 500,            # evaluation step.
-    load_best_model_at_end = True,
-    report_to="wandb"
+    eval_steps = args.eval_steps,            # evaluation step.
+    load_best_model_at_end = args.load_best_model_at_end,
+    report_to=args.report_to,
   )
   
   trainer = Trainer(
@@ -160,21 +161,69 @@ def train(args):
   trainer.train()
   wandb.finish()
 
-  model.save_pretrained('./best_model')
+  model.save_pretrained(args.save_pretrained)
 
 def main(args):
   train(args)
 
 if __name__ == '__main__':
-  seed_everything(42)
   parser = argparse.ArgumentParser()
   
-  # model dir
+  # Data and model checkpoints directories
+  parser.add_argument("--seed", type=int, default=42, help="random seed (default: 42)")
+  parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
+  parser.add_argument("--train_data", type=str, default="../dataset/train/train.csv", help="train_data directory (default: ../dataset/train/train.csv)")
+  parser.add_argument("--num_labels", type=int, default=30, help="number of labels (default: 30)")
+  parser.add_argument("--output_dir", type=str, default="./results", help="directory which stores various outputs (default: ./results)")
+  parser.add_argument("--save_total_limit", type=int, default=5, help="max number of saved models (default: 5)")
+  parser.add_argument("--save_steps", type=int, default=500, help="interval of saving model (default: 500)")
+  parser.add_argument("--num_train_epochs", type=int, default=20, help="number of train epochs (default: 20)")
+  parser.add_argument("--learning_rate", type=float, default=5e-5, help="learning rate (default: 5e-5)")
+  parser.add_argument("--per_device_train_batch_size", type=int, default=16, help=" (default: 16)")
+  parser.add_argument("--per_device_eval_batch_size", type=int, default=16, help=" (default: 16)")
+  parser.add_argument("--warmup_steps", type=int, default=500, help=" (default: 500)")
+  parser.add_argument("--weight_decay", type=float, default=0.01, help=" (default: 0.01)")
+  parser.add_argument("--logging_dir", type=str, default="./logs", help=" (default: ./logs)")
+  parser.add_argument("--logging_steps", type=int, default=100, help=" (default: 100)")
+  parser.add_argument("--evaluation_strategy", type=str, default="steps", help=" (default: steps)")
+  parser.add_argument("--eval_steps", type=int, default=500, help=" (default: 500)")
+  parser.add_argument("--load_best_model_at_end", type=bool, default=True, help=" (default: True)")
+  parser.add_argument("--save_pretrained", type=str, default="./best_model", help=" (default: ./best_model)")
+
+  # updated
   parser.add_argument('--run_name', type=str, default="baseline")
   parser.add_argument('--tokenize', type=str, default="punct")
+  parser.add_argument("--n_splits", type=int, default=1, help=" (default: )")
+  parser.add_argument("--test_size", type=float, default=0.1, help=" (default: )")
+  parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: )")
+  parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: )")
+  parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
+
+
+  # parser.add_argument("--", type=int, default=, help=" (default: )")
+  # parser.add_argument("--", type=str, default="", help=" (default: )")
+
+  # parser.add_argument("--epochs", type=int, default=30, help="number of epochs to train (default: 1)")
+  # parser.add_argument("--augmentation", type=str, default="CustomAugmentation", help="data augmentation type (default: CustomAugmentation)")
+  # parser.add_argument("--resize", nargs="+", type=list, default=[384, 384], help="resize size for image when training")
+  # parser.add_argument("--resize", nargs="+", type=list, default=[128, 96], help="resize size for image when training")
+  # parser.add_argument("--batch_size", type=int, default=64, help="input batch size for training (default: 64)")
+  # parser.add_argument("--valid_batch_size", type=int, default=1000, help="input batch size for validing (default: 1000)")
+  # parser.add_argument("--model", type=str, default="BaseModel", help="model type (default: BaseModel)")
+  # parser.add_argument("--optimizer", type=str, default="SGD", help="optimizer type (default: SGD)")
+  # parser.add_argument("--lr", type=float, default=1e-3, help="learning rate (default: 1e-3)")
+  # parser.add_argument("--val_ratio", type=float, default=0.2, help="ratio for validaton (default: 0.2)")
+  # parser.add_argument("--criterion", type=str, default="f1", help="criterion type (default: f1)")
+  # parser.add_argument("--lr_decay_step", type=int, default=20, help="learning rate scheduler deacy step (default: 20)")
+  # parser.add_argument("--log_interval", type=int, default=20, help="how many batches to wait before logging training status")
+  # parser.add_argument("--name", default="exp", help="model save at {SM_MODEL_DIR}/{name}")
+  # parser.add_argument("--data_dir", type=str, default=os.environ.get("SM_CHANNEL_TRAIN", "/opt/ml/input/data_edit/train/images"))
+
+  
   
   args = parser.parse_args()
-  
-  wandb.run.name = args.run_name
+  print(args)
+
+  seed_everything(args.seed)
   
   main(args)
