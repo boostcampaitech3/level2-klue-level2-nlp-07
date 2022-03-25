@@ -21,12 +21,6 @@ class RE_Dataset(Dataset):
   def __len__(self):
     return len(self.labels)
 
-  def split_dataset(self):
-    """무작위 랜덤 샘플링"""
-    #n_val = int(len(self) * 0.2)
-    #n_train = len(self) - n_val
-    #train_set, val_set = random_split(self, [n_train, n_val])
-    return train_set, val_set
     
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
