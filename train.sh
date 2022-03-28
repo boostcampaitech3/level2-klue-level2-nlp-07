@@ -10,7 +10,7 @@ python train.py \
 --num_labels 30 \
 --output_dir ./results \
 --save_total_limit 5 \
---save_steps 100 \
+--save_steps 500 \
 --num_train_epochs 4 \
 --learning_rate 5e-5 \
 --per_device_train_batch_size 64 \
@@ -18,9 +18,9 @@ python train.py \
 --warmup_steps 500 \
 --weight_decay 0.01 \
 --logging_dir ./logs \
---logging_steps 100 \
+--logging_steps 500 \
 --evaluation_strategy steps \
---eval_steps  100 \
+--eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
 --tokenize punct \
