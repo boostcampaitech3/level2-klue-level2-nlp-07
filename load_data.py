@@ -42,7 +42,7 @@ def load_data(dataset_dir):
   
   return dataset
 
-def tokenized_dataset(dataset, tokenizer):
+def tokenized_dataset(dataset, tokenizer, type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):

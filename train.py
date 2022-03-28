@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from load_data import *
+#from modified_load_data import *
 import wandb
 import argparse
 
@@ -100,8 +101,8 @@ def train(args):
   dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+  tokenized_train = tokenized_dataset(train_dataset, tokenizer, args.tokenize)
+  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer, args.tokenize)
 
 
   # make dataset for pytorch.
@@ -115,9 +116,8 @@ def train(args):
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  #model = Bert(MODEL_NAME, config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-
+  model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
 
