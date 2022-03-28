@@ -1,7 +1,6 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
-#from modified_load_data import *
-from load_data import *
+# from load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -10,6 +9,7 @@ import pickle as pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
+from importlib import import_module
 
 def inference(model, tokenized_sent, device):
   """
@@ -54,31 +54,35 @@ def load_test_dataset(dataset_dir, tokenizer):
     test dataset을 불러온 후,
     tokenizing 합니다.
   """
-  test_dataset = load_data(dataset_dir)
+  load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
+  test_dataset = load(dataset_dir)
   test_label = list(map(int,test_dataset['label'].values))
   # tokenizing dataset
-  tokenized_test = tokenized_dataset(test_dataset, tokenizer, args.tokenize)
+  tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
+  tokenized_test = tokenize(test_dataset, tokenizer, args.tokenize)
   return test_dataset['id'], tokenized_test, test_label
 
 def main(args):
   """
     주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
   """
+
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
-  Tokenizer_NAME = "klue/roberta-large"
+  Tokenizer_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
   ## load my model
   MODEL_NAME = args.model_dir # model dir.
-  model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+  model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
   model.parameters
   model.to(device)
 
   ## load test datset
-  test_dataset_dir = "../dataset/test/test_data.csv"
+  test_dataset_dir = args.test_dataset
   test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
-  Re_test_dataset = RE_Dataset(test_dataset ,test_label)
+  re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
+  Re_test_dataset = re_data(test_dataset ,test_label)
 
   ## predict answer
   pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
@@ -96,9 +100,17 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   
   # model dir
+  parser.add_argument('--test_dataset', type=str, default="../dataset/test/test_data.csv")
   parser.add_argument('--model_dir', type=str, default="./best_model")
-  parser.add_argument('--tokenize', type=str, default="")
+  parser.add_argument('--tokenize', type=str, default="punct")
+  parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
   
+  # load_data module
+  parser.add_argument('--load_data_filename', type=str, default="load_data")
+  parser.add_argument('--load_data_func_load', type=str, default="load_data")
+  parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
+  parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
+
   args = parser.parse_args()
   print(args)
   main(args)
