@@ -8,7 +8,6 @@ import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
-# from load_data import *
 import wandb
 import argparse
 from importlib import import_module
@@ -82,8 +81,6 @@ def label_to_num(label):
 def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
   MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
@@ -121,7 +118,6 @@ def train(args):
   model_config.num_labels = args.num_labels
 
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
@@ -208,7 +204,6 @@ if __name__ == '__main__':
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
-  
   
   args = parser.parse_args()
   print(args)
