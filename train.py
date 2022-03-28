@@ -6,11 +6,11 @@ import random
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.model_selection import StratifiedShuffleSplit
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
-from load_data import *
-#from modified_load_data import *
 import wandb
 import argparse
+from importlib import import_module
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -81,14 +81,13 @@ def label_to_num(label):
 def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
   MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
 
   # load dataset
-  dataset = load_data(args.train_data)
+  load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
+  dataset = load(args.train_data)
 
   split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
 
@@ -101,13 +100,15 @@ def train(args):
   dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer, args.tokenize)
-  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer, args.tokenize)
+  tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
+  tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
+  tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
 
 
   # make dataset for pytorch.
-  RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+  re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
+  RE_train_dataset = re_data(tokenized_train, train_label)
+  RE_dev_dataset = re_data(tokenized_dev, dev_label)
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -198,8 +199,11 @@ if __name__ == '__main__':
   parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: )")
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
 
-
-  
+  # load_data module
+  parser.add_argument('--load_data_filename', type=str, default="load_data")
+  parser.add_argument('--load_data_func_load', type=str, default="load_data")
+  parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
+  parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
   
   args = parser.parse_args()
   print(args)

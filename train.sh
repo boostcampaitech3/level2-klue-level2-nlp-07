@@ -1,28 +1,32 @@
 # How to use: type 'sh train.sh' on your CLI
 python train.py \
+--load_data_filename load_data_junejae \
+--load_data_func_load load_data \
+--load_data_func_tokenized tokenized_dataset \
+--load_data_class RE_Dataset \
 --seed 42 \
 --model klue/bert-base \
 --train_data ../dataset/train/train.csv \
 --num_labels 30 \
 --output_dir ./results \
 --save_total_limit 5 \
---save_steps 500 \
---num_train_epochs 20 \
+--save_steps 100 \
+--num_train_epochs 4 \
 --learning_rate 5e-5 \
---per_device_train_batch_size 16 \
---per_device_eval_batch_size 16 \
+--per_device_train_batch_size 64 \
+--per_device_eval_batch_size 64 \
 --warmup_steps 500 \
 --weight_decay 0.01 \
 --logging_dir ./logs \
 --logging_steps 100 \
 --evaluation_strategy steps \
---eval_steps  500 \
+--eval_steps  100 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---run_name baseline \
 --tokenize punct \
 --n_splits 1 \
---test_size 0.1 \
---project_name Model_Test \
+--test_size 0.2 \
+--report_to wandb \
+--project_name [junejae]two_sentence \
 --entity_name growing_sesame \
---report_to wandb
+--run_name test_run
