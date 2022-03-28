@@ -1,5 +1,6 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
+#from modified_load_data import *
 from load_data import *
 import pandas as pd
 import torch
@@ -56,7 +57,7 @@ def load_test_dataset(dataset_dir, tokenizer):
   test_dataset = load_data(dataset_dir)
   test_label = list(map(int,test_dataset['label'].values))
   # tokenizing dataset
-  tokenized_test = tokenized_dataset(test_dataset, tokenizer)
+  tokenized_test = tokenized_dataset(test_dataset, tokenizer, args.tokenize)
   return test_dataset['id'], tokenized_test, test_label
 
 def main(args):
@@ -66,7 +67,7 @@ def main(args):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
   Tokenizer_NAME = "klue/roberta-large"
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
   ## load my model
   MODEL_NAME = args.model_dir # model dir.
@@ -96,6 +97,8 @@ if __name__ == '__main__':
   
   # model dir
   parser.add_argument('--model_dir', type=str, default="./best_model")
+  parser.add_argument('--tokenize', type=str, default="")
+  
   args = parser.parse_args()
   print(args)
   main(args)
