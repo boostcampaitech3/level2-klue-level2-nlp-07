@@ -6,8 +6,8 @@ import random
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
-from load_data import *
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoModelForPreTraining, DataCollatorForLanguageModeling, AutoModelForMaskedLM
+from load_data_tapt import *
 import wandb
 import argparse
 
@@ -85,7 +85,7 @@ def train(args):
   MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
-
+  data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=0.15)
   # load dataset
   dataset = load_data(args.train_data)
 
@@ -95,28 +95,22 @@ def train(args):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
 
-
-  train_label = label_to_num(train_dataset['label'].values)
-  dev_label = label_to_num(dev_dataset['label'].values)
-
   # tokenizing dataset
-  tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-  tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
-
+  tokenized_train = tokenized_dataset_tapt(train_dataset, tokenizer)
+  tokenized_dev = tokenized_dataset_tapt(dev_dataset, tokenizer)
 
   # make dataset for pytorch.
-  RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-  RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
+  RE_train_dataset = RE_Dataset(tokenized_train, tokenized_train['input_ids'])
+  RE_dev_dataset = RE_Dataset(tokenized_dev, tokenized_dev['input_ids'])
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
   print(device)
   # setting model hyperparameter
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = args.num_labels
 
   #model = Bert(MODEL_NAME, config=model_config)
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  model =  AutoModelForMaskedLM.from_pretrained(MODEL_NAME)
 
   model.parameters
   model.to(device)
@@ -128,8 +122,7 @@ def train(args):
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
     output_dir=args.output_dir,          # output directory
-    save_total_limit=args.save_total_limit,              # number of total save model.
-    save_steps=args.save_steps,            # model saving step.
+    save_total_limit=args.save_total_limit,              # number of total save model.           # model saving step.
     num_train_epochs=args.num_train_epochs,         # total number of training epochs
     learning_rate=args.learning_rate, # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
@@ -141,9 +134,7 @@ def train(args):
     evaluation_strategy=args.evaluation_strategy, # evaluation strategy to adopt during training
                                 # `no`: No evaluation during training.
                                 # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    eval_steps = args.eval_steps,            # evaluation step.
-    load_best_model_at_end = args.load_best_model_at_end,
+                                # `epoch`: Evaluate every end of epoch.          # evaluation step.
     report_to=args.report_to,
   )
   
@@ -152,14 +143,14 @@ def train(args):
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
     eval_dataset=RE_dev_dataset,             # evaluation dataset
-    compute_metrics=compute_metrics         # define metrics function
+    data_collator=data_collator,
+            # define metrics function
   )
 
   for batch in trainer.get_train_dataloader():
     print({k: v.shape for k, v in batch.items()})
     break
-  assert 1==0
-
+  
   # train model
   trainer.train()
   wandb.finish()
