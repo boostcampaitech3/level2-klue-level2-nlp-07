@@ -1,34 +1,28 @@
 # How to use: type 'sh train.sh' on your CLI
-python train.py \
---load_data_filename load_data_junejae \
---load_data_func_load load_data \
---load_data_func_tokenized tokenized_dataset \
---load_data_class RE_Dataset \
---metric_for_best_model 'eval_micro f1 score' \
---gradient_accumulation_steps 1 \
+python train_tapt.py \
 --seed 42 \
 --model klue/roberta-large \
---train_data ../dataset/train/train.csv \
+--train_data /opt/ml/dataset/train/train.csv \
 --num_labels 30 \
---output_dir ./results \
+--output_dir ./adaptive \
 --save_total_limit 10 \
 --save_steps 500 \
---num_train_epochs 4 \
+--num_train_epochs 5 \
 --learning_rate 5e-5 \
 --per_device_train_batch_size 16 \
 --per_device_eval_batch_size 16 \
 --warmup_steps 500 \
 --weight_decay 0.01 \
 --logging_dir ./logs \
---logging_steps 500 \
+--logging_steps 100 \
 --evaluation_strategy steps \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---tokenize temp \
+--run_name roberta_large_adaptive_epoch5 \
+--tokenize punct \
 --n_splits 1 \
 --test_size 0.2 \
---report_to wandb \
---project_name [junejae]text_aug \
+--project_name TAPT \
 --entity_name growing_sesame \
---run_name bert_batch16_epoch5
+--report_to wandb
