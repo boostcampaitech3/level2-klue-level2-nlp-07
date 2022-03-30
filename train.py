@@ -148,7 +148,12 @@ def train(args):
     eval_steps = args.eval_steps,            # evaluation step.
     load_best_model_at_end = args.load_best_model_at_end,
     report_to=args.report_to,
+<<<<<<< HEAD
     metric_for_best_model='micro f1 score'
+=======
+    metric_for_best_model=args.metric_for_best_model,
+    gradient_accumulation_steps=args.gradient_accumulation_steps,
+>>>>>>> 4f011b80b7ca29a070f0e86fab12c3b4d31b57d1
   )
 
   trainer = Trainer(
@@ -200,6 +205,8 @@ if __name__ == '__main__':
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: )")
   parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: )")
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
+  parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: )")
+  parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: )")
 
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
