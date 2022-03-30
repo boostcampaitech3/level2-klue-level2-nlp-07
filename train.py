@@ -148,12 +148,8 @@ def train(args):
     eval_steps = args.eval_steps,            # evaluation step.
     load_best_model_at_end = args.load_best_model_at_end,
     report_to=args.report_to,
-<<<<<<< HEAD
-    metric_for_best_model='micro f1 score'
-=======
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
->>>>>>> 4f011b80b7ca29a070f0e86fab12c3b4d31b57d1
   )
 
   trainer = Trainer(
