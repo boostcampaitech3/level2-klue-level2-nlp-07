@@ -5,6 +5,9 @@ import torch
 from torch.utils.data import Dataset, Subset, random_split
 from typing import Tuple
 from sklearn.model_selection import StratifiedShuffleSplit
+from ktextaug import synonym_replace
+from ktextaug.tokenization_utils import Tokenizer
+from random import Random
 
 
 class RE_Dataset(Dataset):
@@ -21,14 +24,15 @@ class RE_Dataset(Dataset):
   def __len__(self):
     return len(self.labels)
 
+
     
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   object_entity = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
+    i = i[1:-1].split(", '")[0].split(':')[1]
+    j = j[1:-1].split(", '")[0].split(':')[1]
 
     subject_entity.append(i)
     object_entity.append(j)
@@ -42,19 +46,30 @@ def load_data(dataset_dir):
   
   return dataset
 
+def augmented_dataset(dataset):
+  aug_sentence = []
+  aug_subject = []
+  aug_object = []
+
+  return dataset
+
 def tokenized_dataset(dataset, tokenizer, type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
+
+  if len(dataset) > 20000:
+    dataset = augmented_dataset(dataset)
+
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     temp = ''
-    #temp = e01 + '[SEP]' + e02
-    temp = '이 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
+    temp = e01 + '[SEP]' + e02
+    #temp = '이 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
     #temp = '다음 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
     concat_entity.append(temp)
     
   tokenized_sentences = tokenizer(
-      list(dataset['sentence']),
       concat_entity,
+      list(dataset['sentence']),
       return_tensors="pt",
       padding=True,
       truncation=True,

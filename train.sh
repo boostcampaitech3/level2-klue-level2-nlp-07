@@ -1,6 +1,6 @@
 # How to use: type 'sh train.sh' on your CLI
 python train.py \
---load_data_filename load_data \
+--load_data_filename load_data_junejae \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
 --load_data_class RE_Dataset \
@@ -29,6 +29,6 @@ python train.py \
 --n_splits 1 \
 --test_size 0.2 \
 --report_to wandb \
---project_name baseline \
+--project_name [junejae]text_aug \
 --entity_name growing_sesame \
---run_name testRun
+--run_name bert_batch16_epoch5
