@@ -1,12 +1,13 @@
 # How to use: type 'sh train.sh' on your CLI
 python train_tapt.py \
 --seed 42 \
---model klue/bert-base \
---train_data ../dataset/train/train.csv \
+--model klue/roberta-large \
+--train_data /opt/ml/dataset/train/train.csv \
 --num_labels 30 \
 --output_dir ./adaptive \
 --save_total_limit 10 \
---num_train_epochs 3 \
+--save_steps 500 \
+--num_train_epochs 5 \
 --learning_rate 5e-5 \
 --per_device_train_batch_size 16 \
 --per_device_eval_batch_size 16 \
@@ -14,10 +15,11 @@ python train_tapt.py \
 --weight_decay 0.01 \
 --logging_dir ./logs \
 --logging_steps 100 \
---evaluation_strategy epoch \
+--evaluation_strategy steps \
+--eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---run_name adaptive_test \
+--run_name roberta_large_adaptive_epoch5 \
 --tokenize punct \
 --n_splits 1 \
 --test_size 0.2 \
