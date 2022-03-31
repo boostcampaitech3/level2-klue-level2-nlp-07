@@ -2,7 +2,7 @@
 python inference.py \
 --test_dataset ../dataset/test/test_data.csv \
 --model klue/roberta-large \
---model_dir ./best_model \
+--model_dir ./results/checkpoint-5000 \
 --tokenize punct \
 --load_data_filename load_data \
 --load_data_func_load load_data \
@@ -11,3 +11,4 @@ python inference.py \
 
 
 # --model_dir ./results/checkpoint-5000 \
+# --model_dir ./best_model \

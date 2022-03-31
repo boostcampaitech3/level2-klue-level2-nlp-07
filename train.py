@@ -114,11 +114,11 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
+  model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-1500')
   # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
+  model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-1500', config=model_config)
   # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters

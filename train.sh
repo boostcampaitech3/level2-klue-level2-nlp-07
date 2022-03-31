@@ -11,7 +11,7 @@ python train.py \
 --train_data ../dataset/train/train.csv \
 --num_labels 30 \
 --output_dir ./results \
---save_total_limit 10 \
+--save_total_limit 5 \
 --save_steps 500 \
 --num_train_epochs 4 \
 --learning_rate 5e-5 \
@@ -31,4 +31,4 @@ python train.py \
 --report_to wandb \
 --project_name TAPT \
 --entity_name growing_sesame \
---run_name robert_large_adaptive_5500
+--run_name roberta_large_adaptive_1500

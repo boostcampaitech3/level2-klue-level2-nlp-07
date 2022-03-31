@@ -5,9 +5,9 @@ python train_tapt.py \
 --train_data /opt/ml/dataset/train/train.csv \
 --num_labels 30 \
 --output_dir ./adaptive \
---save_total_limit 10 \
+--save_total_limit 5 \
 --save_steps 500 \
---num_train_epochs 5 \
+--num_train_epochs 1 \
 --learning_rate 5e-5 \
 --per_device_train_batch_size 16 \
 --per_device_eval_batch_size 16 \
@@ -19,7 +19,7 @@ python train_tapt.py \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---run_name roberta_large_adaptive_epoch5 \
+--run_name roberta_large_adaptive_epoch8 \
 --tokenize punct \
 --n_splits 1 \
 --test_size 0.2 \
