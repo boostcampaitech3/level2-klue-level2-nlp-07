@@ -89,7 +89,6 @@ def tokenized_dataset(dataset, tokenizer, type):
         sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
     
       # 두개 이상의 공백 지우기 + 앞 뒤 공백 지우기
-      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/ ]", "", sent)
       sent = re.sub(r"\s+", " ", sent).strip()
       sentences.append(sent)
     
@@ -125,7 +124,6 @@ def tokenized_dataset(dataset, tokenizer, type):
           # subject token 달기
           sent = sent[:int(sub_start)-1] + special_sub + sent[int(sub_end)+1:]
       
-      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/ ]", "", sent)
       sent = re.sub(r"\s+", " ", sent).strip()
       sentences.append(sent)
       
