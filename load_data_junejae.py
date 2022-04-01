@@ -30,12 +30,19 @@ def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   object_entity = []
+  
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(", '")[0].split(':')[1]
-    j = j[1:-1].split(", '")[0].split(':')[1]
+    dict_i = eval(i) # str을 코드화
+    dict_j = eval(j)
+    #i = '<S:{0}>{1}</S:{0}>'.format(dict_i['type'], dict_i['word']) # subj
+    #j = '<O:{0}>{1}</O:{0}>'.format(dict_j['type'], dict_j['word']) # obj
+    i = dict_i['word']
+    j = dict_j['word']
 
     subject_entity.append(i)
     object_entity.append(j)
+  
+
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
@@ -46,19 +53,9 @@ def load_data(dataset_dir):
   
   return dataset
 
-def augmented_dataset(dataset):
-  aug_sentence = []
-  aug_subject = []
-  aug_object = []
-
-  return dataset
-
 def tokenized_dataset(dataset, tokenizer, type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
-
-  if len(dataset) > 20000:
-    dataset = augmented_dataset(dataset)
 
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
     temp = ''

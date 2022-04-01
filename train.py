@@ -77,6 +77,41 @@ def label_to_num(label):
   
   return num_label
 
+def augmented_dataset(dataset, augdata): # added for augmentation
+  aug_ids = []
+  aug_sentence = []
+  aug_subject = []
+  aug_object = []
+  aug_labels = []
+
+
+  for i in dataset['id']:
+
+    j = dataset[dataset['id'] == i].index.tolist()[0]
+    k = augdata[augdata['id'] == i].index.tolist()[0]
+
+    aug_ids.append(dataset.loc[j]['id'])
+    aug_sentence.append(dataset.loc[j]['sentence'])
+    aug_subject.append(dataset.loc[j]['subject_entity'])
+    aug_object.append(dataset.loc[j]['object_entity'])
+    aug_labels.append(dataset.loc[j]['label'])
+
+    if dataset.loc[j]['sentence'] != augdata.loc[k]['sentence']:
+      aug_ids.append(augdata.loc[k]['id'])
+      aug_sentence.append(augdata.loc[k]['sentence'])
+      aug_subject.append(augdata.loc[k]['subject_entity'])
+      aug_object.append(augdata.loc[k]['object_entity'])
+      aug_labels.append(augdata.loc[k]['label'])
+
+  result = pd.DataFrame(aug_ids)
+  result.columns = ['id']
+  result['sentence'] = aug_sentence
+  result['subject_entity'] = aug_subject
+  result['object_entity'] = aug_object
+  result['label'] = aug_labels
+
+  return result
+
 
 def train(args):
   seed_everything(args.seed)
@@ -95,6 +130,9 @@ def train(args):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
 
+  if args.usingAugmentation:
+    aug_dataset = load(args.aug_data)
+    train_dataset = augmented_dataset(train_dataset, aug_dataset) # added for augmentation
 
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
@@ -114,12 +152,12 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
-  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
+  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
-  # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
+  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
@@ -150,6 +188,7 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
+    fp16= args.fp16,
   )
 
   trainer = Trainer(
@@ -203,6 +242,9 @@ if __name__ == '__main__':
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
   parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: )")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: )")
+  parser.add_argument("--fp16", type=bool, default=True, help=" (default: True)")
+  parser.add_argument("--usingAugmentation", type=bool, default=False, help=" (default: False)")
+  parser.add_argument("--aug_data", type=str, default="../dataset/train/augmented_vowelNoise.csv", help="(default: )")
 
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
