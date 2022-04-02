@@ -103,6 +103,26 @@ def build_bpe(
 # Post-processing
 
 
+def get_entity_position_embedding(tokenizer, input_ids):
+    special_token2id = {k:v for k,v in zip(tokenizer.all_special_tokens, tokenizer.all_special_ids)}
+    start_token_id = special_token2id['@']
+    end_token_id = special_token2id['#']
+    
+    pos_embeddings = []
+    for y in input_ids:
+        pos = []
+        for j in range(0, len(y)):
+            if len(pos) == 4:
+                break
+            if y[j] == start_token_id:
+                pos.append(j)
+            
+            if y[j] == end_token_id:
+                pos.append(j)
+        pos_embeddings.append(pos)
+
+    return torch.tensor(pos_embeddings, dtype=torch.int)
+
 def tokenized_dataset(dataset, tokenizer): # df, AutoTokenizer
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
@@ -118,6 +138,7 @@ def tokenized_dataset(dataset, tokenizer): # df, AutoTokenizer
       padding=True,
       truncation=True,
       max_length=256,
-      add_special_tokens=True,
-      )
+      add_special_tokens=True,)
+  tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
+
   return tokenized_sentences
