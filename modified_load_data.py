@@ -37,7 +37,7 @@ def preprocessing_dataset(dataset):
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
       dict_i = eval(i) # str을 코드화
       dict_j = eval(j)
-      print(dict_i)
+
       sub = dict_i['word'] # subj
       sub_start_idx = dict_i['start_idx'] # subj
       sub_end_idx = dict_i['end_idx'] # subj
