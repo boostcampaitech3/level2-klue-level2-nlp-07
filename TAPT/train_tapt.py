@@ -88,19 +88,19 @@ def train(args):
   # load dataset
   dataset = load_data(args.train_data)
 
-  split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
+  # split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
 
-  for train_idx, test_idx in split.split(dataset, dataset["label"]):
-      train_dataset = dataset.loc[train_idx]
-      dev_dataset = dataset.loc[test_idx]
+  # for train_idx, test_idx in split.split(dataset, dataset["label"]):
+  #     train_dataset = dataset.loc[train_idx]
+  #     dev_dataset = dataset.loc[test_idx]
 
   # tokenizing dataset
-  tokenized_train = tokenized_dataset_tapt(train_dataset, tokenizer)
-  tokenized_dev = tokenized_dataset_tapt(dev_dataset, tokenizer)
+  tokenized_train = tokenized_dataset_tapt(dataset, tokenizer)
+  # tokenized_dev = tokenized_dataset_tapt(dev_dataset, tokenizer)
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, tokenized_train['input_ids'])
-  RE_dev_dataset = RE_Dataset(tokenized_dev, tokenized_dev['input_ids'])
+  # RE_dev_dataset = RE_Dataset(tokenized_dev, tokenized_dev['input_ids'])
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -146,7 +146,7 @@ def train(args):
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_dev_dataset,             # evaluation dataset
+    eval_dataset=RE_train_dataset,             # evaluation dataset
     data_collator=data_collator,
             # define metrics function
   )

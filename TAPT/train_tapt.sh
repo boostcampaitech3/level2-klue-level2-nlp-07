@@ -2,12 +2,12 @@
 python train_tapt.py \
 --seed 42 \
 --model klue/roberta-large \
---train_data /opt/ml/dataset/train/train.csv \
+--train_data /opt/ml/dataset/tapt_data.csv \
 --num_labels 30 \
 --output_dir ./adaptive \
 --save_total_limit 5 \
 --save_steps 500 \
---num_train_epochs 1 \
+--num_train_epochs 5 \
 --learning_rate 5e-5 \
 --per_device_train_batch_size 16 \
 --per_device_eval_batch_size 16 \
@@ -19,10 +19,10 @@ python train_tapt.py \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---run_name roberta_large_adaptive_epoch8 \
+--run_name roberta_large_adaptive_epoch5 \
 --tokenize punct \
 --n_splits 1 \
 --test_size 0.2 \
---project_name TAPT \
+--project_name new_TAPT \
 --entity_name growing_sesame \
 --report_to wandb

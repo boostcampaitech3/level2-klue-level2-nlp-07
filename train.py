@@ -84,7 +84,6 @@ def train(args):
   MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
-
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
   dataset = load(args.train_data)
@@ -114,12 +113,12 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-1500')
-  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-11000')
+  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-1500', config=model_config)
-  # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-11000', config=model_config)
+  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
@@ -150,6 +149,7 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
+    fp16=True
   )
 
   trainer = Trainer(
@@ -159,7 +159,7 @@ def train(args):
     eval_dataset=RE_dev_dataset,             # evaluation dataset
     compute_metrics=compute_metrics         # define metrics function
   )
-
+  
   # train model
   trainer.train()
   wandb.finish()
