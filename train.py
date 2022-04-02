@@ -11,6 +11,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
+from re_model import ReModel
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -120,6 +121,7 @@ def train(args):
 
   model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
   # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # model = ReModel(args, tokenizer)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
