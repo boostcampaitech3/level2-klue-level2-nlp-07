@@ -1,19 +1,20 @@
 import torch
 import torch.nn as nn
-from transformers import AutoModel, AutoConfig, AutoModelForSequenceClassification, BertForSequenceClassification
+from transformers import AutoModel, AutoConfig, BertPreTrainedModel
 from torch.cuda.amp import autocast
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
 import numpy as np
 
 
-class ReModel(nn.Module):
+class ReModel(BertPreTrainedModel):
     def __init__(self, args, tokenizer):
-        super().__init__()
         self.args = args
         
         MODEL_NAME = args.model
         self.config =  AutoConfig.from_pretrained(MODEL_NAME)
+        super().__init__(self.config)
+
         self.num_labels = args.num_labels
         self.model =  AutoModel.from_pretrained(MODEL_NAME, config=self.config)
         self.model.resize_token_embeddings(len(tokenizer))
@@ -54,27 +55,22 @@ class ReModel(nn.Module):
             attention_mask=attention_mask,
             token_type_ids=token_type_ids,
         )
-
-        pooled_output = outputs[0] # logits
-        # print('---- pooled_output shape: ', pooled_output.shape) # 16, 250, 768
-        # print('---- entity_position_embedding.shape: ', entity_position_embedding.shape) # 16, 4
-
+        pooled_output = outputs[0]
+        
         idx = torch.arange(input_ids.size(0)).to(input_ids.device)
         entity_position_embedding = entity_position_embedding.T
         ss_emb = pooled_output[idx, entity_position_embedding[0].tolist()]
         se_emb = pooled_output[idx, entity_position_embedding[1].tolist()]
         os_emb = pooled_output[idx, entity_position_embedding[2].tolist()]
         oe_emb = pooled_output[idx, entity_position_embedding[3].tolist()]
-        # print('---- ss_emb.shape: ', ss_emb.shape)
         
         h = torch.cat((ss_emb, se_emb, os_emb, oe_emb), dim=-1).to(input_ids.device)
-        # print('---- h.shape: ', h.shape) # 16, 16, 3072
         
         logits = self.classifier(h)        
         outputs = (logits,)
         if labels is not None:
-            # print('---- logits:', logits.shape, ', labels: ', labels)
             loss = self.loss_fn(logits.float(), labels)
             outputs = (loss, ) + outputs
         
         return outputs
+    

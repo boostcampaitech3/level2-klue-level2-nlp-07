@@ -138,6 +138,7 @@ def tokenized_dataset(dataset, tokenizer): # df, AutoTokenizer
       padding=True,
       truncation=True,
       max_length=256,
-      add_special_tokens=True,
-      )
+      add_special_tokens=True,)
+  tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
+
   return tokenized_sentences
