@@ -11,7 +11,8 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
-from re_model import ReModel
+from re_model_hyunah import ReModel
+
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -152,6 +153,7 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
+    fp16 = True,
   )
 
   trainer = Trainer(

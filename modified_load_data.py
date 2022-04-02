@@ -23,44 +23,46 @@ class RE_Dataset(Dataset):
     return len(self.labels)
     
 def preprocessing_dataset(dataset):
-  """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
   subject_start = []
   subject_end = []
-  subject_type = []
+
 
   object_entity = []
   object_start = []
   object_end = []
-  object_type = []
 
+
+  # sentences = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-      i_entity = i[1:-1].split(", '")[0].split(':')[1]
-      i_start = int(i[1:-1].split(", '")[1].split(':')[1])
-      i_end = int(i[1:-1].split(", '")[2].split(':')[1])
-      i_type = i[1:-1].split(", '")[3].split(':')[1]
+      dict_i = eval(i) # str을 코드화
+      dict_j = eval(j)
+      print(dict_i)
+      sub = dict_i['word'] # subj
+      sub_start_idx = dict_i['start_idx'] # subj
+      sub_end_idx = dict_i['end_idx'] # subj
       
-      j_entity = j[1:-1].split(", '")[0].split(':')[1]
-      j_start = int(j[1:-1].split(", '")[1].split(':')[1])
-      j_end = int(j[1:-1].split(", '")[2].split(':')[1])
-      j_type = j[1:-1].split(", '")[3].split(':')[1]
+      obj = dict_j['word'] # obj
+      obj_start_idx = dict_j['start_idx'] # obj
+      obj_end_idx = dict_j['end_idx'] # obj
 
-      subject_entity.append(i_entity)
-      subject_start.append(i_start)
-      subject_end.append(i_end)
-      subject_type.append(i_type)
-
-
-      object_entity.append(j_entity)
-      object_start.append(j_start)
-      object_end.append(j_end)
-      object_type.append(j_type)
+      subject_entity.append(sub)
+      subject_start.append(sub_start_idx)
+      subject_end.append(sub_end_idx)
       
+      object_entity.append(obj)
+      object_start.append(obj_start_idx)
+      object_end.append(obj_end_idx)
+      
+      
+      
+
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],
-                              'subject_entity':subject_entity,'subject_start':subject_start,'subject_end':subject_end,'subject_type':subject_type,
-                              'object_entity':object_entity,'object_start':object_start,'object_end':object_end,'object_type':object_type,
+                              'subject_entity':subject_entity,'subject_start':subject_start,'subject_end':subject_end,
+                              'object_entity':object_entity,'object_start':object_start,'object_end':object_end,
                               'label':dataset['label']})
   return out_dataset
+
 
 def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
@@ -78,8 +80,8 @@ def tokenized_dataset(dataset, tokenizer, type):
                                                                       dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], 
                                                                       dataset['object_entity'],dataset['object_start'], dataset['object_end']):
 
-      sub = sub.replace("'", "").strip()
-      obj = obj.replace("'", "").strip()
+      sub = sub[1:-1]
+      obj = obj[1:-1]
       
       if sub_start > obj_start:
         sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
@@ -89,44 +91,13 @@ def tokenized_dataset(dataset, tokenizer, type):
         sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
     
       # 두개 이상의 공백 지우기 + 앞 뒤 공백 지우기
-      sent = re.sub(r"\s+", " ", sent).strip()
-      sentences.append(sent)
-    
-    tokenized_sentences = tokenizer(
-      sentences,
-      return_tensors="pt",
-      padding=True,
-      truncation=True,
-      max_length=256,
-      add_special_tokens=True,
-      )  
-  elif type == "entity":
-    sentences = list()
-    
-    for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
-                                                                                      dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], dataset['subject_type'], 
-                                                                                      dataset['object_entity'],dataset['object_start'], dataset['object_end'], dataset['object_type']):
-      sub = sub.replace("'", "").strip()
-      special_sub = "<S:%s> " % (sub_type.replace("'", "").strip()) + sub + " </S:%s> " % (sub_type.replace("'", "").strip())
-      obj = obj.replace("'", "").strip()
-      special_obj = "<O:%s> " % (obj_type.replace("'", "").strip()) + obj + " </O:%s> " % (obj_type.replace("'", "").strip())
+      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
 
-      if sub_start > obj_start:
-          # subject token 달기
-          sent = sent[:int(sub_start)-1] + special_sub + sent[int(sub_end)+1:]
-          
-          # object token 달기
-          sent = sent[:int(obj_start)-1] + special_obj + sent[int(obj_end)+1:]
-      else:
-          # object token 달기
-          sent = sent[:int(obj_start)-1] + special_obj + sent[int(obj_end)+1:]
-          
-          # subject token 달기
-          sent = sent[:int(sub_start)-1] + special_sub + sent[int(sub_end)+1:]
-      
+      sent = re.sub(r"\"+", '\"', sent).strip()
+      sent = re.sub(r"\'+", "\'", sent).strip()
       sent = re.sub(r"\s+", " ", sent).strip()
       sentences.append(sent)
-      
+    
     tokenized_sentences = tokenizer(
       sentences,
       return_tensors="pt",
@@ -134,8 +105,9 @@ def tokenized_dataset(dataset, tokenizer, type):
       truncation=True,
       max_length=256,
       add_special_tokens=True,
-      )
-  else:
+      ) 
+    
+  else: # baseline
     concat_entity = []
     
     for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
