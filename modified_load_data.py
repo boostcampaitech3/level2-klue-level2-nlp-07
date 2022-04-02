@@ -75,13 +75,13 @@ def tokenized_dataset(dataset, tokenizer, type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   if type == "punct":
     sentences = list()
+    entity = list()
     
     for sent, sub, sub_start, sub_end, obj, obj_start, obj_end in zip(dataset['sentence'], 
                                                                       dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], 
                                                                       dataset['object_entity'],dataset['object_start'], dataset['object_end']):
 
-      sub = sub[1:-1]
-      obj = obj[1:-1]
+      temp = sub + '[SEP]' + obj
       
       if sub_start > obj_start:
         sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
@@ -97,8 +97,10 @@ def tokenized_dataset(dataset, tokenizer, type):
       sent = re.sub(r"\'+", "\'", sent).strip()
       sent = re.sub(r"\s+", " ", sent).strip()
       sentences.append(sent)
+      entity.append(temp)
     
     tokenized_sentences = tokenizer(
+      entity,
       sentences,
       return_tensors="pt",
       padding=True,
@@ -106,7 +108,92 @@ def tokenized_dataset(dataset, tokenizer, type):
       max_length=256,
       add_special_tokens=True,
       ) 
+  
+  elif type == "entity":
+    sentences = list()
+    entity = list()
     
+    for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
+                                                                                      dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], dataset['subject_type'], 
+                                                                                      dataset['object_entity'],dataset['object_start'], dataset['object_end'], dataset['object_type']):
+      
+      special_sub = "<S:%s> " % (sub_type.replace("'", "").strip()) + sub + " </S:%s> " % (sub_type.replace("'", "").strip())
+      special_obj = "<O:%s> " % (obj_type.replace("'", "").strip()) + obj + " </O:%s> " % (obj_type.replace("'", "").strip())
+      temp = sub + '[SEP]' + obj
+
+      if sub_start > obj_start:
+          # subject token 달기
+          sent = sent[:int(sub_start)-1] + special_sub + sent[int(sub_end)+1:]
+          
+          # object token 달기
+          sent = sent[:int(obj_start)-1] + special_obj + sent[int(obj_end)+1:]
+      else:
+          # object token 달기
+          sent = sent[:int(obj_start)-1] + special_obj + sent[int(obj_end)+1:]
+          
+          # subject token 달기
+          sent = sent[:int(sub_start)-1] + special_sub + sent[int(sub_end)+1:]
+      
+      sent = re.sub(r"\s+", " ", sent).strip()
+      sentences.append(sent)
+      
+    tokenized_sentences = tokenizer(
+      entity,
+      sentences,
+      return_tensors="pt",
+      padding=True,
+      truncation=True,
+      max_length=256,
+      add_special_tokens=True,
+    ) 
+  
+  elif type == "typed_entity":
+    # Typed entity marker (punct)
+
+    sentences = list()
+    entity = list()
+
+    for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
+                                                                                        dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], dataset['subject_type'], 
+                                                                                        dataset['object_entity'],dataset['object_start'], dataset['object_end'], dataset['object_type']):
+
+      special_sub = " @ * %s * " % (sub_type.replace("'", "").strip()) + sub + " @ "
+      special_obj = " # ^ %s ^ " % (obj_type.replace("'", "").strip()) + obj + " # "
+      temp = sub + '[SEP]' + obj
+
+      if sub_start > obj_start:
+          # subject token 달기
+          sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
+          
+          # object token 달기
+          sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
+      else:
+          # object token 달기
+          sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
+          
+          # subject token 달기
+          sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
+      
+      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
+
+      sent = re.sub(r"\"+", '\"', sent).strip()
+      sent = re.sub(r"\'+", "\'", sent).strip()
+      sent = re.sub(r"\s+", " ", sent).strip()
+
+      sentences.append(sent)
+      entity.append(temp)
+        
+    tokenized_sentences = tokenizer(
+      entity,
+      sentences,
+      return_tensors="pt",
+      padding=True,
+      truncation=True,
+      max_length=256,
+      add_special_tokens=True,
+    ) 
+              
+        
   else: # baseline
     concat_entity = []
     
