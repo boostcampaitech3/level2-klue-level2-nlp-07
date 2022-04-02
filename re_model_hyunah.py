@@ -28,7 +28,7 @@ class ReModel(nn.Module):
             nn.Linear(hidden_size * 4, hidden_size),
             nn.ReLU(),
             nn.Dropout(p=dropout_prob),
-            nn.Linear(hidden_size, self.config.num_labels)
+            nn.Linear(hidden_size, args.num_labels)
         )
         
     
@@ -56,34 +56,25 @@ class ReModel(nn.Module):
         )
 
         pooled_output = outputs[0] # logits
-        print('---- pooled_output shape: ', pooled_output.shape) # 16, 256, 768
-        print('---- entity_position_embedding.shape: ', entity_position_embedding.shape) # 16, 4
+        # print('---- pooled_output shape: ', pooled_output.shape) # 16, 250, 768
+        # print('---- entity_position_embedding.shape: ', entity_position_embedding.shape) # 16, 4
 
         idx = torch.arange(input_ids.size(0)).to(input_ids.device)
-        embs = []
-        for x in entity_position_embedding.T:
-            embs.append( torch.tensor([pooled_output[idx, int(y)].tolist() for y in x]) )
-        print('---- embs.len: ', len(embs)) # 16, 4
+        entity_position_embedding = entity_position_embedding.T
+        ss_emb = pooled_output[idx, entity_position_embedding[0].tolist()]
+        se_emb = pooled_output[idx, entity_position_embedding[1].tolist()]
+        os_emb = pooled_output[idx, entity_position_embedding[2].tolist()]
+        oe_emb = pooled_output[idx, entity_position_embedding[3].tolist()]
+        # print('---- ss_emb.shape: ', ss_emb.shape)
         
-        h = torch.cat((embs[0], embs[1], embs[2], embs[3]), dim=-1).to(input_ids.device)
-        print('---- h.shape: ', h.shape, h.device) # 16, 4
+        h = torch.cat((ss_emb, se_emb, os_emb, oe_emb), dim=-1).to(input_ids.device)
+        # print('---- h.shape: ', h.shape) # 16, 16, 3072
         
-        logits = self.classifier(h)
-        print('---- hidden_logits shape: ', logits.shape) # 16, 256, 768
-        
+        logits = self.classifier(h)        
+        outputs = (logits,)
         if labels is not None:
-            print('---- if labels- logits:', logits.shape, ', labels: ', labels)
+            # print('---- logits:', logits.shape, ', labels: ', labels)
             loss = self.loss_fn(logits.float(), labels)
+            outputs = (loss, ) + outputs
         
-        if not return_dict:
-            print('---- if return_dict- logits:', logits.shape, ', labels: ', labels)
-            output = (logits,) + outputs[2:]
-            loss = self.loss_fn(logits.float(), labels)
-            return ((loss,) + output) if loss is not None else output
-
-        return SequenceClassifierOutput(
-            loss=loss,
-            logits=logits,
-            hidden_states=outputs.hidden_states,
-            attentions=outputs.attentions,
-        )
+        return outputs
