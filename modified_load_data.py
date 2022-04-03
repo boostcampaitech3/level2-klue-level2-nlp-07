@@ -26,40 +26,45 @@ def preprocessing_dataset(dataset):
   subject_entity = []
   subject_start = []
   subject_end = []
+  subject_type = []
 
 
   object_entity = []
   object_start = []
   object_end = []
+  object_type = []
 
 
   # sentences = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
       dict_i = eval(i) # str을 코드화
       dict_j = eval(j)
-
       sub = dict_i['word'] # subj
       sub_start_idx = dict_i['start_idx'] # subj
       sub_end_idx = dict_i['end_idx'] # subj
+      sub_type = dict_i['type'] # subj
       
       obj = dict_j['word'] # obj
       obj_start_idx = dict_j['start_idx'] # obj
       obj_end_idx = dict_j['end_idx'] # obj
+      obj_type = dict_j['type'] # obj
 
       subject_entity.append(sub)
       subject_start.append(sub_start_idx)
       subject_end.append(sub_end_idx)
+      subject_type.append(sub_type)
       
       object_entity.append(obj)
       object_start.append(obj_start_idx)
       object_end.append(obj_end_idx)
+      object_type.append(obj_type)
       
       
       
 
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],
-                              'subject_entity':subject_entity,'subject_start':subject_start,'subject_end':subject_end,
-                              'object_entity':object_entity,'object_start':object_start,'object_end':object_end,
+                              'subject_entity':subject_entity,'subject_start':subject_start,'subject_end':subject_end,'subject_type':subject_type,
+                              'object_entity':object_entity,'object_start':object_start,'object_end':object_end,'object_type':object_type,
                               'label':dataset['label']})
   return out_dataset
 
@@ -174,7 +179,7 @@ def tokenized_dataset(dataset, tokenizer, type):
           # subject token 달기
           sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
       
-      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
+      sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\*\^\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
 
       sent = re.sub(r"\"+", '\"', sent).strip()
       sent = re.sub(r"\'+", "\'", sent).strip()

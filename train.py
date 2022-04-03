@@ -84,7 +84,8 @@ def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
+  #tokenizer.add_tokens(['#', '@'])
 
 
   # load dataset
@@ -116,12 +117,12 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
-  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  #model_config =  AutoConfig.from_pretrained('./TAPT/adaptive_16/checkpoint-5500')
+  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
-  # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  #model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive_16/checkpoint-5500', config=model_config)
+  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   # model = ReModel(args, tokenizer)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
