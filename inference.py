@@ -1,6 +1,6 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
-# from load_data import *
+from modified_load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -70,7 +70,7 @@ def main(args):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
   Tokenizer_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, add_special_token=['#', '@'])
 
   ## load my model
   MODEL_NAME = args.model_dir # model dir.
@@ -103,10 +103,10 @@ if __name__ == '__main__':
   parser.add_argument('--test_dataset', type=str, default="../dataset/test/test_data.csv")
   parser.add_argument('--model_dir', type=str, default="./best_model")
   parser.add_argument('--tokenize', type=str, default="punct")
-  parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
+  parser.add_argument("--model", type=str, default="klue/roberta-large", help="model to train (default: klue/bert-base)")
   
   # load_data module
-  parser.add_argument('--load_data_filename', type=str, default="load_data")
+  parser.add_argument('--load_data_filename', type=str, default="modified_load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
