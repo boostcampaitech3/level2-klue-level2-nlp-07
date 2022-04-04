@@ -76,9 +76,8 @@ def main(args):
 
   ## load my model
   MODEL_NAME = args.model_dir # model dir.
-  model = AutoModel.from_pretrained(MODEL_NAME)
-  # setattr(args, 'model', 'klue/roberta-large')
-  # model = ReModel("./best_model", tokenizer=tokenizer)
+  model = ReModel(args, tokenizer=tokenizer)
+  model.load_state_dict(torch.load(MODEL_NAME, map_location=device))
   model.parameters
   model.to(device)
 
