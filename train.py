@@ -77,48 +77,12 @@ def label_to_num(label):
   
   return num_label
 
-def augmented_dataset(dataset, augdata): # added for augmentation
-  aug_ids = []
-  aug_sentence = []
-  aug_subject = []
-  aug_object = []
-  aug_labels = []
-
-
-  for i in dataset['id']:
-
-    j = dataset[dataset['id'] == i].index.tolist()[0]
-    k = augdata[augdata['id'] == i].index.tolist()[0]
-
-    aug_ids.append(dataset.loc[j]['id'])
-    aug_sentence.append(dataset.loc[j]['sentence'])
-    aug_subject.append(dataset.loc[j]['subject_entity'])
-    aug_object.append(dataset.loc[j]['object_entity'])
-    aug_labels.append(dataset.loc[j]['label'])
-
-    if dataset.loc[j]['sentence'] != augdata.loc[k]['sentence']:
-      aug_ids.append(augdata.loc[k]['id'])
-      aug_sentence.append(augdata.loc[k]['sentence'])
-      aug_subject.append(augdata.loc[k]['subject_entity'])
-      aug_object.append(augdata.loc[k]['object_entity'])
-      aug_labels.append(augdata.loc[k]['label'])
-
-  result = pd.DataFrame(aug_ids)
-  result.columns = ['id']
-  result['sentence'] = aug_sentence
-  result['subject_entity'] = aug_subject
-  result['object_entity'] = aug_object
-  result['label'] = aug_labels
-
-  return result
-
-
 def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
-
+  # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@","^","*", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -129,17 +93,20 @@ def train(args):
   for train_idx, test_idx in split.split(dataset, dataset["label"]):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
-
-  if args.usingAugmentation:
-    aug_dataset = load(args.aug_data)
-    train_dataset = augmented_dataset(train_dataset, aug_dataset) # added for augmentation
+  
+  if args.use_augmentation: # added for augmentation
+    aug_dataset1 = load('../dataset/train/augmented_backtrans_v1_en.csv')
+    aug_dataset2 = load('../dataset/train/augmented_backtrans_v2_en.csv')
+    temp = pd.concat([train_dataset, aug_dataset1, aug_dataset2]).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
+    train_dataset = temp[temp[['id']].duplicated(keep=False)]
 
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
 
   # tokenizing dataset
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
+  tokenize_train = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized_train)
+  tokenized_train = tokenize_train(train_dataset, tokenizer, args.tokenize)
   tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
 
 
@@ -155,6 +122,8 @@ def train(args):
   # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
+
+  model_config.classifier_dropout = 0.0 # gives dropout to classifier layer
 
   # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
@@ -175,7 +144,8 @@ def train(args):
     learning_rate=args.learning_rate, # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    #warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    warmup_ratio=0.1,
     weight_decay=args.weight_decay,               # strength of weight decay
     logging_dir=args.logging_dir,            # directory for storing logs
     logging_steps=args.logging_steps,              # log saving step.
@@ -188,7 +158,7 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
-    fp16= args.fp16,
+    fp16=True,
   )
 
   trainer = Trainer(
@@ -242,8 +212,7 @@ if __name__ == '__main__':
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
   parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: )")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: )")
-  parser.add_argument("--fp16", type=bool, default=True, help=" (default: True)")
-  parser.add_argument("--usingAugmentation", type=bool, default=False, help=" (default: False)")
+  parser.add_argument("--use_augmentation", type=bool, default=False, help=" (default: False)")
   parser.add_argument("--aug_data", type=str, default="../dataset/train/augmented_vowelNoise.csv", help="(default: )")
 
   # load_data module
@@ -251,6 +220,7 @@ if __name__ == '__main__':
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
+  parser.add_argument('--load_data_func_tokenized_train', type=str, default="tokenized_dataset")
   
   args = parser.parse_args()
   print(args)

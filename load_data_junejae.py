@@ -7,7 +7,7 @@ from typing import Tuple
 from sklearn.model_selection import StratifiedShuffleSplit
 from ktextaug import synonym_replace
 from ktextaug.tokenization_utils import Tokenizer
-from random import Random
+import random
 
 
 class RE_Dataset(Dataset):
@@ -38,6 +38,8 @@ def preprocessing_dataset(dataset):
     #j = '<O:{0}>{1}</O:{0}>'.format(dict_j['type'], dict_j['word']) # obj
     i = dict_i['word']
     j = dict_j['word']
+    """ i = i[1:-1].split(',')[0].split(':')[1]
+    j = j[1:-1].split(',')[0].split(':')[1] """
 
     subject_entity.append(i)
     object_entity.append(j)
@@ -49,28 +51,135 @@ def preprocessing_dataset(dataset):
 def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset)
+  """ dataset = preprocessing_dataset(pd_dataset)
   
-  return dataset
+  return dataset """
+  return pd_dataset
 
 def tokenized_dataset(dataset, tokenizer, type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
+  concat_sentence = []
+  # concat_whole = []
 
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    temp = ''
-    temp = e01 + '[SEP]' + e02
-    #temp = '이 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
-    #temp = '다음 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
-    concat_entity.append(temp)
+  for sentence, e01, e02 in zip(dataset['sentence'], dataset['subject_entity'], dataset['object_entity']):
+    #temp = e01 + '[SEP]' + e02
+
+    dict_e01 = eval(e01) # str을 코드화
+    dict_e02 = eval(e02)
+
+    e01_word = dict_e01['word']
+    e02_word = dict_e02['word']
+    final_sentence = sentence
+
     
+    if dict_e01['start_idx'] <= dict_e02['start_idx']:
+      sentence_left = sentence[:dict_e01['start_idx']]
+      sentence_subject = sentence[dict_e01['start_idx']:dict_e01['end_idx']+1]
+      sentence_middle = sentence[dict_e01['end_idx']+1:dict_e02['start_idx']]
+      sentence_object = sentence[dict_e02['start_idx']:dict_e02['end_idx']+1]
+      sentence_right = sentence[dict_e02['end_idx']+1:]
+
+      sentence_subject = '@*'+dict_e01['type']+'*'+sentence_subject+'@'
+      sentence_object = '#^'+dict_e02['type']+'^'+sentence_object+'#'
+
+      final_sentence = sentence_left + sentence_subject + sentence_middle + sentence_object + sentence_right
+    
+    else:
+      sentence_left = sentence[:dict_e02['start_idx']]
+      sentence_object = sentence[dict_e02['start_idx']:dict_e02['end_idx']+1]
+      sentence_middle = sentence[dict_e02['end_idx']+1:dict_e01['start_idx']]
+      sentence_subject = sentence[dict_e01['start_idx']:dict_e01['end_idx']+1]
+      sentence_right = sentence[dict_e01['end_idx']+1:]
+
+      sentence_subject = '@*'+dict_e01['type']+'*'+sentence_subject+'@'
+      sentence_object = '#^'+dict_e02['type']+'^'+sentence_object+'#'
+
+      final_sentence = sentence_left + sentence_object + sentence_middle + sentence_subject + sentence_right
+     
+
+    temp = e01_word + ' 그리고 ' + e02_word + ' 사이의 관계는?[SEP]'
+    # temp = ''
+    # temp = '이 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
+    # temp = '다음 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
+    concat_entity.append(temp)
+    concat_sentence.append(final_sentence)
+
+    # concat_whole.append(temp+ final_sentence)
+
   tokenized_sentences = tokenizer(
       concat_entity,
-      list(dataset['sentence']),
+      concat_sentence,
+      # concat_whole,
       return_tensors="pt",
       padding=True,
       truncation=True,
-      max_length=256, # default: 256
+      max_length=128, # default: 256
+      add_special_tokens=True,
+      )
+
+  return tokenized_sentences
+
+def tokenized_dataset_difficult(dataset, tokenizer, type):
+  random.seed(42)
+  """ tokenizer에 따라 sentence를 tokenizing 합니다."""
+  concat_entity = []
+  concat_sentence = []
+  concat_whole = []
+
+  for sentence, e01, e02 in zip(dataset['sentence'], dataset['subject_entity'], dataset['object_entity']):
+    #temp = e01 + '[SEP]' + e02
+
+    dict_e01 = eval(e01) # str을 코드화
+    dict_e02 = eval(e02)
+
+    e01_word = dict_e01['word']
+    e02_word = dict_e02['word']
+    final_sentence = sentence
+    
+    if dict_e01['start_idx'] <= dict_e02['start_idx']:
+      sentence_left = sentence[:dict_e01['start_idx']]
+      sentence_subject = sentence[dict_e01['start_idx']:dict_e01['end_idx']+1]
+      sentence_middle = sentence[dict_e01['end_idx']+1:dict_e02['start_idx']]
+      sentence_object = sentence[dict_e02['start_idx']:dict_e02['end_idx']+1]
+      sentence_right = sentence[dict_e02['end_idx']+1:]
+
+      sentence_subject = '@*'+dict_e01['type']+'*'+sentence_subject+'@'
+      sentence_object = '#^'+dict_e02['type']+'^'+sentence_object+'#'
+
+      final_sentence = sentence_left + sentence_subject + sentence_middle + sentence_object + sentence_right
+    
+    else:
+      sentence_left = sentence[:dict_e02['start_idx']]
+      sentence_object = sentence[dict_e02['start_idx']:dict_e02['end_idx']+1]
+      sentence_middle = sentence[dict_e02['end_idx']+1:dict_e01['start_idx']]
+      sentence_subject = sentence[dict_e01['start_idx']:dict_e01['end_idx']+1]
+      sentence_right = sentence[dict_e01['end_idx']+1:]
+
+      sentence_subject = '@*'+dict_e01['type']+'*'+sentence_subject+'@'
+      sentence_object = '#^'+dict_e02['type']+'^'+sentence_object+'#'
+
+      final_sentence = sentence_left + sentence_object + sentence_middle + sentence_subject + sentence_right
+
+    temp = e01_word + ' 그리고 ' + e02_word + ' 사이의 관계는?[SEP]'
+    if random.randrange(0,2) == 0:
+      temp = ''
+    #temp = '이 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
+    #temp = '다음 문장에서' + e01 + '과 ' + e02 + '은 어떤 관계일까?'
+
+    """ concat_entity.append(temp)
+    concat_sentence.append(final_sentence) """
+
+    concat_whole.append(temp + final_sentence)
+
+  tokenized_sentences = tokenizer(
+      #concat_entity,
+      #concat_sentence,
+      concat_whole,
+      return_tensors="pt",
+      padding=True,
+      truncation=True,
+      max_length=128, # default: 256
       add_special_tokens=True,
       )
 
