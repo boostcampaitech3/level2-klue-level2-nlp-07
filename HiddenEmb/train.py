@@ -209,6 +209,7 @@ if __name__ == '__main__':
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
   parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: )")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: )")
+  parser.add_argument("--hidden_emb_no", type=int, default=4, help=" (default: )")
   
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")

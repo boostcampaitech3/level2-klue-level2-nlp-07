@@ -107,7 +107,8 @@ if __name__ == '__main__':
   parser.add_argument('--model_dir', type=str, default="./best_model")
   parser.add_argument('--tokenize', type=str, default="punct")
   parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
-  
+  parser.add_argument("--hidden_emb_no", type=int, default=4, help=" (default: )")
+
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")

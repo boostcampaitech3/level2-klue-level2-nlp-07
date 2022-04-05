@@ -7,4 +7,5 @@ python inference.py \
 --load_data_filename load_data_hyunah \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
---load_data_class RE_Dataset 
+--load_data_class RE_Dataset \
+--hidden_emb_no 4

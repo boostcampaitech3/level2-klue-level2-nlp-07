@@ -26,9 +26,10 @@ python train.py \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
 --tokenize punct \
+--hidden_emb_no 4 \
 --n_splits 1 \
 --test_size 0.2 \
 --report_to wandb \
 --project_name 'Hidden Emb test' \
 --entity_name hyunah \
---run_name class2
+--run_name class2 
