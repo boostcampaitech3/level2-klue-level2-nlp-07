@@ -49,6 +49,29 @@ def num_to_label(label):
   
   return origin_label
 
+def ensemble_probs(filenames, NUM_CLASS=30, output_filename="./ensemble.csv"):
+  '''
+  parameter:
+    filenames (list) = ['./output.csv', './submission.csv']
+    NUM_CLASS (int) = 30 [default]
+    output_filename (str) = "./ensemble.csv" [default]
+  output:
+    soft-voting한 output_filename file 생성
+  '''
+  output_prob = []
+  for fname in filenames:
+    Mat = np.array(eval(','.join(list(pd.read_csv(fname)['probs']))))
+    output_prob.append(Mat)
+  output_prob = np.mean(output_prob, 0).tolist()
+
+  test_id = pd.read_csv(filenames[0])['id']
+  pred_answer = num_to_label(np.argmax(output_prob, axis=1))
+
+  output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
+  output.to_csv(output_filename, index=False)
+  print('-- done --')
+
+
 def load_test_dataset(dataset_dir, tokenizer):
   """
     test dataset을 불러온 후,
