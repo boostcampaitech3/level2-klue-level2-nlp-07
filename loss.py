@@ -1,13 +1,12 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.autograd import Variable
 
 
 # https://discuss.pytorch.org/t/is-this-a-correct-implementation-for-focal-loss-in-pytorch/43327/8
 class FocalLoss(nn.Module):
     def __init__(self, weight=None,
-                 gamma=2., reduction='mean'):
+                 gamma=0.5, reduction='mean'):
         nn.Module.__init__(self)
         self.weight = weight
         self.gamma = gamma

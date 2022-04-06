@@ -140,9 +140,6 @@ def train(args):
   def model_init():
     return model
   
-  # wandb.init(project=args.project_name, entity=args.entity_name)
-  # wandb.run.name = args.run_name
-  
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
@@ -181,10 +178,9 @@ def train(args):
   def my_hp_space(trial):
     return {
         "learning_rate": trial.suggest_categorical("learning_rate",[1e-5, 3e-5, 5e-5]),
-        # "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
-        # "per_device_eval_batch_size": tune.choice([16, 32]),
+        "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
         "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 8),
-        # "seed": tune.choice(range(1, 42)),
+        "seed": trial.suggest_int("seed", 1, 42),
     }
   
   trainer.hyperparameter_search(
@@ -193,9 +189,6 @@ def train(args):
   )
   # train model
   trainer.train()
-  # wandb.finish()
-
-  # model.save_pretrained(args.save_pretrained)
 
 def main(args):
   train(args)
