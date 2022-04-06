@@ -1,8 +1,8 @@
 # How to use: type 'sh inference.sh' on your CLI
 python inference.py \
 --test_dataset ../dataset/test/test_data.csv \
---model klue/roberta-large \
---model_dir ./roberta_hps/checkpoint-4000 \
+--model  xlm-roberta-large \
+--model_dir ./results/checkpoint-2500 \
 --tokenize punct \
 --load_data_filename load_data \
 --load_data_func_load load_data \
@@ -15,3 +15,4 @@ python inference.py \
 # --model_dir ./best_model \
 # --model klue/roberta-large \
 # --model klue/bert-base \
+#  xlm-roberta-large

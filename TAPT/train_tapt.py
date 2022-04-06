@@ -123,21 +123,23 @@ def train(args):
   training_args = TrainingArguments(
     output_dir=args.output_dir,          # output directory
     save_total_limit=args.save_total_limit,              # number of total save model.
-    save_steps=args.save_steps,            # model saving step.
+    # save_steps=args.save_steps,            # model saving step.
     num_train_epochs=args.num_train_epochs,         # total number of training epochs
     learning_rate=args.learning_rate, # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    # warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
     weight_decay=args.weight_decay,               # strength of weight decay
     logging_dir=args.logging_dir,            # directory for storing logs
-    logging_steps=args.logging_steps,              # log saving step.
+    # logging_steps=args.logging_steps,              # log saving step.
     evaluation_strategy=args.evaluation_strategy, # evaluation strategy to adopt during training
                                 # `no`: No evaluation during training.
                                 # `steps`: Evaluate every `eval_steps`.
                                 # `epoch`: Evaluate every end of epoch.
-    eval_steps = args.eval_steps,            # evaluation step.
+    # eval_steps = args.eval_steps,            # evaluation step.
     report_to=args.report_to,
+    warmup_ratio=0.1,
+    fp16=True
   )
 
   data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=0.15)

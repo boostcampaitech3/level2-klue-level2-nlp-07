@@ -11,9 +11,8 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
-from re_model_hyunah import ReModel
 from loss import FocalLoss
-
+import optuna
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -80,7 +79,6 @@ def label_to_num(label):
   
   return num_label
 
-
 class CustomTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
@@ -88,7 +86,7 @@ class CustomTrainer(Trainer):
         outputs = model(**inputs)
         logits = outputs.get("logits")  
         # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = FocalLoss(gamma=args.warmup_steps)
+        loss_fct = FocalLoss()
         loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
         return (loss, outputs) if return_outputs else loss
 
@@ -98,6 +96,7 @@ def train(args):
   # load model and tokenizer
   MODEL_NAME = args.model
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -118,6 +117,7 @@ def train(args):
   tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
   tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
 
+
   # make dataset for pytorch.
   re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
   RE_train_dataset = re_data(tokenized_train, train_label)
@@ -127,31 +127,33 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-1000')
+  # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-11000')
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
-  # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-1000', config=model_config)
+  # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-11000', config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  # model = ReModel(args, tokenizer)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
 
-  wandb.init(project=args.project_name, entity=args.entity_name)
-  wandb.run.name = args.run_name
+  def model_init():
+    return model
+  
+  # wandb.init(project=args.project_name, entity=args.entity_name)
+  # wandb.run.name = args.run_name
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir=args.output_dir,          # output directory
+    output_dir="roberta_hps",          # output directory
     save_total_limit=args.save_total_limit,              # number of total save model.
     save_steps=args.save_steps,            # model saving step.
     num_train_epochs=args.num_train_epochs,         # total number of training epochs
     learning_rate=args.learning_rate, # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    # warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
     weight_decay=args.weight_decay,               # strength of weight decay
     logging_dir=args.logging_dir,            # directory for storing logs
     logging_steps=args.logging_steps,              # log saving step.
@@ -164,23 +166,36 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
-    warmup_ratio=0.1,
+    run_name='hp_test',
     fp16=True
   )
 
-  trainer = CustomTrainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
+  trainer = Trainer(
+    model_init=model_init,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
     eval_dataset=RE_dev_dataset,             # evaluation dataset
     compute_metrics=compute_metrics         # define metrics function
   )
+
+  def my_hp_space(trial):
+    return {
+        "learning_rate": trial.suggest_categorical("learning_rate",[1e-5, 3e-5, 5e-5]),
+        # "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
+        # "per_device_eval_batch_size": tune.choice([16, 32]),
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 8),
+        # "seed": tune.choice(range(1, 42)),
+    }
   
+  trainer.hyperparameter_search(
+    direction="maximize", # NOTE: or direction="minimize"
+    hp_space=my_hp_space, # NOTE: if you wanna use optuna, change it to optuna_hp_space
+  )
   # train model
   trainer.train()
-  wandb.finish()
+  # wandb.finish()
 
-  model.save_pretrained(args.save_pretrained)
+  # model.save_pretrained(args.save_pretrained)
 
 def main(args):
   train(args)
@@ -200,7 +215,7 @@ if __name__ == '__main__':
   parser.add_argument("--learning_rate", type=float, default=5e-5, help="learning rate (default: 5e-5)")
   parser.add_argument("--per_device_train_batch_size", type=int, default=16, help=" (default: 16)")
   parser.add_argument("--per_device_eval_batch_size", type=int, default=16, help=" (default: 16)")
-  parser.add_argument("--warmup_steps", type=float, default=500, help=" (default: 500)")
+  parser.add_argument("--warmup_steps", type=int, default=500, help=" (default: 500)")
   parser.add_argument("--weight_decay", type=float, default=0.01, help=" (default: 0.01)")
   parser.add_argument("--logging_dir", type=str, default="./logs", help=" (default: ./logs)")
   parser.add_argument("--logging_steps", type=int, default=100, help=" (default: 100)")

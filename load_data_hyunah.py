@@ -6,7 +6,7 @@ from typing import List
 from collections import Counter
 from itertools import chain
 from konlpy.tag import Mecab
-
+import torch
 
 # Normalization
 # !! 중복된 문장 제거
