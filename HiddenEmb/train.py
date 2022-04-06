@@ -11,8 +11,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
-from loss import FocalLoss
-
+from re_model import ReModel
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -80,24 +79,11 @@ def label_to_num(label):
   return num_label
 
 
-class CustomTrainer(Trainer):
-    def compute_loss(self, model, inputs, return_outputs=False):
-        labels = inputs.get("labels")
-        # forward pass
-        outputs = model(**inputs)
-        logits = outputs.get("logits")  
-        # compute custom loss (suppose one has 3 labels with different weights)
-        loss_fct = FocalLoss()
-        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
-        return (loss, outputs) if return_outputs else loss
-
-
 def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
-  #tokenizer.add_tokens(['#', '@'])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -109,7 +95,6 @@ def train(args):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
 
-
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
 
@@ -117,6 +102,7 @@ def train(args):
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
   tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
   tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
+
 
   # make dataset for pytorch.
   re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
@@ -127,16 +113,19 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  #model_config =  AutoConfig.from_pretrained('./TAPT/adaptive_16/checkpoint-5500')
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = args.num_labels
+  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  # model_config.num_labels = args.num_labels
 
-  #model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive_16/checkpoint-5500', config=model_config)
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  # model = ReModel(args, tokenizer)
-  model.resize_token_embeddings(len(tokenizer))
-  model.parameters
+  # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # model.resize_token_embeddings(len(tokenizer))
+  # model.parameters
+  # model.to(device)
+  
+  ### 
+  model = ReModel(args, tokenizer)
+  # model.parameters
   model.to(device)
+
 
   wandb.init(project=args.project_name, entity=args.entity_name)
   wandb.run.name = args.run_name
@@ -151,7 +140,7 @@ def train(args):
     learning_rate=args.learning_rate, # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    # warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
     weight_decay=args.weight_decay,               # strength of weight decay
     logging_dir=args.logging_dir,            # directory for storing logs
     logging_steps=args.logging_steps,              # log saving step.
@@ -164,18 +153,18 @@ def train(args):
     report_to=args.report_to,
     metric_for_best_model=args.metric_for_best_model,
     gradient_accumulation_steps=args.gradient_accumulation_steps,
-    warmup_ratio=0.1,
     fp16=True
   )
-
-  trainer = CustomTrainer(
+  
+  trainer = Trainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset
     eval_dataset=RE_dev_dataset,             # evaluation dataset
     compute_metrics=compute_metrics         # define metrics function
   )
-  
+
+
   # train model
   trainer.train()
   wandb.finish()
@@ -184,6 +173,7 @@ def train(args):
 
 def main(args):
   train(args)
+  # re_model(args)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -200,7 +190,7 @@ if __name__ == '__main__':
   parser.add_argument("--learning_rate", type=float, default=5e-5, help="learning rate (default: 5e-5)")
   parser.add_argument("--per_device_train_batch_size", type=int, default=16, help=" (default: 16)")
   parser.add_argument("--per_device_eval_batch_size", type=int, default=16, help=" (default: 16)")
-  parser.add_argument("--warmup_steps", type=float, default=500, help=" (default: 500)")
+  parser.add_argument("--warmup_steps", type=int, default=500, help=" (default: 500)")
   parser.add_argument("--weight_decay", type=float, default=0.01, help=" (default: 0.01)")
   parser.add_argument("--logging_dir", type=str, default="./logs", help=" (default: ./logs)")
   parser.add_argument("--logging_steps", type=int, default=100, help=" (default: 100)")
@@ -219,13 +209,15 @@ if __name__ == '__main__':
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
   parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: )")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: )")
-
+  parser.add_argument("--hidden_emb_no", type=int, default=4, help=" (default: )")
+  
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
-  
+
+
   args = parser.parse_args()
   print(args)
 
