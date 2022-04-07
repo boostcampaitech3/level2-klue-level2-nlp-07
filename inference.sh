@@ -2,7 +2,7 @@
 python inference.py \
 --test_dataset ../dataset/test/test_data.csv \
 --model klue/roberta-large \
---model_dir ./results/checkpoint-6500 \
+--model_dir ./results/checkpoint-3000 \
 --tokenize punct \
 --load_data_filename load_data_junejae \
 --load_data_func_load load_data \

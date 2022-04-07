@@ -11,6 +11,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
+from loss import FocalLoss
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -77,6 +78,17 @@ def label_to_num(label):
   
   return num_label
 
+class CustomTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        labels = inputs.get("labels")
+        # forward pass
+        outputs = model(**inputs)
+        logits = outputs.get("logits")  
+        # compute custom loss (suppose one has 3 labels with different weights)
+        loss_fct = FocalLoss(gamma=0.5)
+        loss = loss_fct(logits.view(-1, self.model.config.num_labels), labels.view(-1))
+        return (loss, outputs) if return_outputs else loss
+
 def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
@@ -94,11 +106,12 @@ def train(args):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
   
+  dev_index = dev_dataset['id'].tolist() # added for augmentation
   if args.use_augmentation: # added for augmentation
-    aug_dataset1 = load('../dataset/train/augmented_backtrans_v1_en.csv')
-    aug_dataset2 = load('../dataset/train/augmented_backtrans_v2_en.csv')
+    aug_dataset1 = load('../dataset/train/augmented_phonologicalProcess.csv')
+    aug_dataset2 = load('../dataset/train/augmented_vowelNoise.csv')
     temp = pd.concat([train_dataset, aug_dataset1, aug_dataset2]).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
-    train_dataset = temp[temp[['id']].duplicated(keep=False)]
+    train_dataset = temp[~temp['id'].isin(dev_index)]
 
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
@@ -161,7 +174,7 @@ def train(args):
     fp16=True,
   )
 
-  trainer = Trainer(
+  trainer = CustomTrainer(
     model=model,                         # the instantiated 🤗 Transformers model to be trained
     args=training_args,                  # training arguments, defined above
     train_dataset=RE_train_dataset,         # training dataset

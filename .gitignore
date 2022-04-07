@@ -6,7 +6,6 @@
 *.json
 *.gz
 *.out
-*.ipynb
 **/model/
 **/__pycache__/
 **/wandb/

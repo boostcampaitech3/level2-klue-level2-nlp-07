@@ -16,12 +16,12 @@ python train.py \
 --output_dir ./results \
 --save_total_limit 10 \
 --save_steps 500 \
---num_train_epochs 3 \
---learning_rate 3e-5 \
---per_device_train_batch_size 32 \
---per_device_eval_batch_size 32 \
+--num_train_epochs 2 \
+--learning_rate 1e-5 \
+--per_device_train_batch_size 34 \
+--per_device_eval_batch_size 64 \
 --warmup_steps 500 \
---weight_decay 0.01 \
+--weight_decay 0.0 \
 --logging_dir ./logs \
 --logging_steps 500 \
 --evaluation_strategy steps \
@@ -34,7 +34,7 @@ python train.py \
 --report_to wandb \
 --project_name [junejae]eval_aug_test \
 --entity_name growing_sesame \
---run_name robertaL_batch32_backv1v2_qustionFront_3e-5_warmup0.1_epoch3real_st_sentenceToken_withClue_dropout0.0
+--run_name robertaL_batch34_spellNoise_qustionFront_1e-5_warmup0.0_epoch2_st_sentenceToken_withClue_dropout0.0_decay0.0_corrected_focal_minQuestion3
 
 # --train_data ../dataset/train/train.csv \
 # --train_data ../dataset/train/train_finalCorrection.csv \
