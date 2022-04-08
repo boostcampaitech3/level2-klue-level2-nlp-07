@@ -6,14 +6,14 @@ python train.py \
 --load_data_class RE_Dataset \
 --gradient_accumulation_steps 1 \
 --seed 42 \
---model klue/roberta-large \
+--model xlm-roberta-large \
 --train_data ../dataset/train/train.csv \
 --num_labels 30 \
---output_dir ./results/no_entity \
+--output_dir ./results \
 --save_total_limit 4 \
 --save_steps 500 \
---num_train_epochs 3 \
---learning_rate 2e-5 \
+--num_train_epochs 5 \
+--learning_rate 9e-6 \
 --per_device_train_batch_size 32 \
 --per_device_eval_batch_size 32 \
 --warmup_steps 500 \
@@ -28,6 +28,6 @@ python train.py \
 --n_splits 1 \
 --test_size 0.2 \
 --report_to wandb \
---project_name baseline \
+--project_name FAST_TEST \
 --entity_name growing_sesame \
---run_name "roberta_large + maxlen 256 + epoch 3 + special token typed_entity + preprocessing yes + lr 2e-5 + @ and # to special token" 
+--run_name "xlm + sota + eng qa"
