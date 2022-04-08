@@ -219,8 +219,8 @@ def tokenized_dataset(dataset, tokenizer, type):
       sent = re.sub(r"\'+", "\'", sent).strip()
       sent = re.sub(r"\s+", " ", sent).strip()
 
-      #temp = '에서' + sub + '와(과) ' + obj + '의 관계는?'
-      temp = "에서 @와 #의 관계는?"
+      temp = 'in ' + sub + ' and ' + obj + ' are?'
+      # temp = "에서 @와 #의 관계는?"
       sentences.append(sent)
       entity.append(temp)
         
@@ -235,7 +235,7 @@ def tokenized_dataset(dataset, tokenizer, type):
       add_special_tokens=True,
     )
     
-    tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
+    # tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
               
         
   else: # baseline

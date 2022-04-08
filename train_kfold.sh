@@ -1,5 +1,5 @@
 # How to use: type 'sh train.sh' on your CLI
-python train_hp.py \
+python train.py \
 --load_data_filename load_data \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
@@ -13,11 +13,12 @@ python train_hp.py \
 --output_dir ./results \
 --save_total_limit 1 \
 --save_steps 500 \
---num_train_epochs 4 \
---learning_rate 5e-5 \
+--num_train_epochs 3 \
+--learning_rate 2e-5 \
 --per_device_train_batch_size 32 \
 --per_device_eval_batch_size 32 \
 --warmup_steps 500 \
+--warmup_ratio 0.1 \
 --weight_decay 0.01 \
 --logging_dir ./logs \
 --logging_steps 500 \
@@ -25,14 +26,11 @@ python train_hp.py \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---tokenize temp \
---n_splits 1 \
+--tokenize punct \
+--n_splits 5 \
 --test_size 0.2 \
+--loss cross \
 --report_to wandb \
---project_name HP_Search \
+--project_name FAST_TEST \
 --entity_name growing_sesame \
---run_name "bert-base hp_search"
-
-
-# --model klue/roberta-large \
-# --model klue/bert-base \
+--run_name "roberta_large_5_kfold (cross)"

@@ -1,15 +1,14 @@
 import pickle as pickle
-import os
-import pandas as pd
 import torch
 import random
 import sklearn
 import numpy as np
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, AutoModelForPreTraining, DataCollatorForLanguageModeling, AutoModelForMaskedLM
+from sklearn.metrics import accuracy_score
+from transformers import AutoTokenizer, AutoConfig, Trainer, TrainingArguments, DataCollatorForLanguageModeling, AutoModelForMaskedLM
 from load_data_tapt import *
 import wandb
 import argparse
+from ..trainer import CustomTrainer
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -78,29 +77,18 @@ def label_to_num(label):
 
 
 def train(args):
-  seed_everything(args.seed)
   # load model and tokenizer
-  # MODEL_NAME = "bert-base-uncased"
-  # MODEL_NAME = "klue/bert-base" /"klue/roberta-base" / "klue/roberta-large"
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
 
   # load dataset
   dataset = load_data(args.train_data)
 
-  # split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
-
-  # for train_idx, test_idx in split.split(dataset, dataset["label"]):
-  #     train_dataset = dataset.loc[train_idx]
-  #     dev_dataset = dataset.loc[test_idx]
-
   # tokenizing dataset
   tokenized_train = tokenized_dataset_tapt(dataset, tokenizer)
-  # tokenized_dev = tokenized_dataset_tapt(dev_dataset, tokenizer)
 
   # make dataset for pytorch.
   RE_train_dataset = RE_Dataset(tokenized_train, tokenized_train['input_ids'])
-  # RE_dev_dataset = RE_Dataset(tokenized_dev, tokenized_dev['input_ids'])
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
@@ -108,9 +96,7 @@ def train(args):
   # setting model hyperparameter
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
 
-  #model = Bert(MODEL_NAME, config=model_config)
   model =  AutoModelForMaskedLM.from_pretrained(MODEL_NAME, config=model_config)
-
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
@@ -121,37 +107,50 @@ def train(args):
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir=args.output_dir,          # output directory
-    save_total_limit=args.save_total_limit,              # number of total save model.
-    # save_steps=args.save_steps,            # model saving step.
+    output_dir=args.output_dir,                     # output directory
+    save_total_limit=args.save_total_limit,         # number of total save model.
+    save_steps=args.save_steps,                     # model saving step.
     num_train_epochs=args.num_train_epochs,         # total number of training epochs
-    learning_rate=args.learning_rate, # learning rate
+    learning_rate=args.learning_rate,               # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    # warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
-    weight_decay=args.weight_decay,               # strength of weight decay
-    logging_dir=args.logging_dir,            # directory for storing logs
-    # logging_steps=args.logging_steps,              # log saving step.
-    evaluation_strategy=args.evaluation_strategy, # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
-                                # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    # eval_steps = args.eval_steps,            # evaluation step.
-    report_to=args.report_to,
-    warmup_ratio=0.1,
-    fp16=True
+    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+    warmup_ratio=args.warmup_ratio,                # Ratio of total training steps used for a linear warmup from 0 to learning_rate.
+    weight_decay=args.weight_decay,                # strength of weight decay
+    logging_dir=args.logging_dir,                  # directory for storing logs
+    logging_steps=args.logging_steps,              # log saving step.
+    evaluation_strategy=args.evaluation_strategy,  # evaluation strategy to adopt during training
+                                                    # `no`: No evaluation during training.
+                                                    # `steps`: Evaluate every `eval_steps`.
+                                                    # `epoch`: Evaluate every end of epoch.
+    eval_steps = args.eval_steps,                             # evaluation step.
+    load_best_model_at_end = args.load_best_model_at_end,     # Whether or not to load the best model found during training at the end of training.
+    report_to=args.report_to,                                 # The list of integrations to report the results and logs to.
+    metric_for_best_model=args.metric_for_best_model,         # Use in conjunction with load_best_model_at_end to specify the metric to use to compare two different models.
+    gradient_accumulation_steps=args.gradient_accumulation_steps,  # Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
+    fp16=True                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
   )
+
 
   data_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm_probability=0.15)
 
-  trainer = Trainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_train_dataset,             # evaluation dataset
-    data_collator=data_collator,
-            # define metrics function
-  )
+  if args.loss=="cross":
+    trainer = Trainer(
+      model=model,                         # the instantiated 🤗 Transformers model to be trained
+      args=training_args,                  # training arguments, defined above
+      train_dataset=RE_train_dataset,      # training dataset
+      eval_dataset=RE_train_dataset,       # evaluation dataset
+      data_collator=data_collator,         # define metrics function
+    )
+
+  elif args.loss=="focal":
+    trainer = CustomTrainer(
+      model=model,                         # the instantiated 🤗 Transformers model to be trained
+      args=training_args,                  # training arguments, defined above
+      train_dataset=RE_train_dataset,      # training dataset
+      eval_dataset=RE_train_dataset,        # evaluation dataset
+      data_collator=data_collator,         # define metrics function
+    )
 
   # train model
   trainer.train()
@@ -189,11 +188,14 @@ if __name__ == '__main__':
   # updated
   parser.add_argument('--run_name', type=str, default="baseline")
   parser.add_argument('--tokenize', type=str, default="punct")
-  parser.add_argument("--n_splits", type=int, default=1, help=" (default: )")
-  parser.add_argument("--test_size", type=float, default=0.1, help=" (default: )")
-  parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: )")
-  parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: )")
-  parser.add_argument("--report_to", type=str, default="wandb", help=" (default: )")
+  parser.add_argument("--n_splits", type=int, default=1, help=" (default: 1)")
+  parser.add_argument("--test_size", type=float, default=0.1, help=" (default: 0.1)")
+  parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: Model_Test)")
+  parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: growing_sesame)")
+  parser.add_argument("--report_to", type=str, default="wandb", help=" (default: wandb)")
+  parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: eval_micro f1 score)")
+  parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: 1)")
+  parser.add_argument("--loss", type=str, default="cross", help="(default: cross)")
 
   args = parser.parse_args()
   print(args)

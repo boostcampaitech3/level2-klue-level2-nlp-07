@@ -1,10 +1,9 @@
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.utils.data import DataLoader
 from modified_load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
-
 import pickle as pickle
 import numpy as np
 import argparse
@@ -25,7 +24,7 @@ def inference(model, tokenized_sent, device):
       outputs = model(
           input_ids=data['input_ids'].to(device),
           attention_mask=data['attention_mask'].to(device),
-          # token_type_ids=data['token_type_ids'].to(device)
+          token_type_ids=data['token_type_ids'].to(device)
           )
     logits = outputs[0]
     prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
@@ -134,14 +133,9 @@ if __name__ == '__main__':
   parser.add_argument('--test_dataset', type=str, default="../dataset/test/test_data.csv")
   parser.add_argument('--model_dir', type=str, default="./best_model")
   parser.add_argument('--tokenize', type=str, default="punct")
-<<<<<<< HEAD
   parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
   parser.add_argument('--file_name', type=str, default="submission")
 
-=======
-  parser.add_argument("--model", type=str, default="klue/roberta-large", help="model to train (default: klue/bert-base)")
-  
->>>>>>> b4320f7b25603dad12294d01d834695f84b46b8d
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="modified_load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
