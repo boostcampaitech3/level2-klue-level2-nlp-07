@@ -166,7 +166,7 @@ class xlmModel(XLMPreTrainedModel):
         self.classifier = nn.Sequential(
             nn.Linear(hidden_size * 4, hidden_size),
             #nn.ReLU(),
-            nn.Dropout(p=0.5),
+            nn.Dropout(p=0.1),
             nn.Linear(hidden_size, self.num_labels)
         )
         

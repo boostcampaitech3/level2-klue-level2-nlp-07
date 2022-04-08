@@ -1,13 +1,11 @@
 import pickle as pickle
-import os
-import pandas as pd
 import torch
 import random
 import sklearn
 import numpy as np
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import AutoTokenizer, Trainer, TrainingArguments
 import wandb
 import argparse
 from importlib import import_module
@@ -83,7 +81,7 @@ def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -111,19 +109,8 @@ def train(args):
 
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-  print(device)
-  # setting model hyperparameter
-  # model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  # model_config.num_labels = args.num_labels
-
-  # model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  # model.resize_token_embeddings(len(tokenizer))
-  # model.parameters
-  # model.to(device)
-  
-  ### 
   model = ReModel(args, tokenizer)
-  # model.parameters
+  model.parameters
   model.to(device)
 
 
@@ -133,27 +120,28 @@ def train(args):
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
-    output_dir=args.output_dir,          # output directory
-    save_total_limit=args.save_total_limit,              # number of total save model.
-    save_steps=args.save_steps,            # model saving step.
+    output_dir=args.output_dir,                     # output directory
+    save_total_limit=args.save_total_limit,         # number of total save model.
+    save_steps=args.save_steps,                     # model saving step.
     num_train_epochs=args.num_train_epochs,         # total number of training epochs
-    learning_rate=args.learning_rate, # learning rate
+    learning_rate=args.learning_rate,               # learning rate
     per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
     per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
     warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
-    weight_decay=args.weight_decay,               # strength of weight decay
-    logging_dir=args.logging_dir,            # directory for storing logs
+    warmup_ratio=args.warmup_ratio,                # Ratio of total training steps used for a linear warmup from 0 to learning_rate.
+    weight_decay=args.weight_decay,                # strength of weight decay
+    logging_dir=args.logging_dir,                  # directory for storing logs
     logging_steps=args.logging_steps,              # log saving step.
-    evaluation_strategy=args.evaluation_strategy, # evaluation strategy to adopt during training
-                                # `no`: No evaluation during training.
-                                # `steps`: Evaluate every `eval_steps`.
-                                # `epoch`: Evaluate every end of epoch.
-    eval_steps = args.eval_steps,            # evaluation step.
-    load_best_model_at_end = args.load_best_model_at_end,
-    report_to=args.report_to,
-    metric_for_best_model=args.metric_for_best_model,
-    gradient_accumulation_steps=args.gradient_accumulation_steps,
-    fp16=True
+    evaluation_strategy=args.evaluation_strategy,  # evaluation strategy to adopt during training
+                                                    # `no`: No evaluation during training.
+                                                    # `steps`: Evaluate every `eval_steps`.
+                                                    # `epoch`: Evaluate every end of epoch.
+    eval_steps = args.eval_steps,                             # evaluation step.
+    load_best_model_at_end = args.load_best_model_at_end,     # Whether or not to load the best model found during training at the end of training.
+    report_to=args.report_to,                                 # The list of integrations to report the results and logs to.
+    metric_for_best_model=args.metric_for_best_model,         # Use in conjunction with load_best_model_at_end to specify the metric to use to compare two different models.
+    gradient_accumulation_steps=args.gradient_accumulation_steps,  # Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
+    fp16=True,                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
   )
   
   trainer = Trainer(
@@ -173,7 +161,6 @@ def train(args):
 
 def main(args):
   train(args)
-  # re_model(args)
 
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
@@ -201,7 +188,8 @@ if __name__ == '__main__':
 
   # updated
   parser.add_argument('--run_name', type=str, default="baseline")
-  parser.add_argument('--tokenize', type=str, default="punct")
+  parser.add_argument('--special_entity_type', type=str, default="typed_entity")
+  parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
   parser.add_argument("--n_splits", type=int, default=1, help=" (default: )")
   parser.add_argument("--test_size", type=float, default=0.1, help=" (default: )")
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: )")

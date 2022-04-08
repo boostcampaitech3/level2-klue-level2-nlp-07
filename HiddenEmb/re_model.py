@@ -1,13 +1,11 @@
 import torch
 import torch.nn as nn
-from transformers import AutoModel, AutoConfig, BertPreTrainedModel, RobertaPreTrainedModel
+from transformers import AutoModel, AutoConfig, RobertaPreTrainedModel
 from torch.cuda.amp import autocast
-from torch.utils.data import DataLoader
-from torch.autograd import Variable
-import numpy as np
+from loss import *
 
 
-class ReModel(RobertaPreTrainedModel): # BertPreTrainedModel
+class ReModel(RobertaPreTrainedModel):
     def __init__(self, args, tokenizer, emb_no=4):
         self.args = args
         
@@ -15,15 +13,17 @@ class ReModel(RobertaPreTrainedModel): # BertPreTrainedModel
         self.config =  AutoConfig.from_pretrained(MODEL_NAME)
         super().__init__(self.config)
 
-        self.num_labels = 30 # args.num_labels
+        self.num_labels = args.num_labels
         self.model = AutoModel.from_pretrained(MODEL_NAME, config=self.config)
         self.model.resize_token_embeddings(len(tokenizer))
         
         hidden_size = self.config.hidden_size
-        batch_size = 32 # args.per_device_train_batch_size
         dropout_prob = self.config.attention_probs_dropout_prob
         
-        self.loss_fn = nn.CrossEntropyLoss()
+        if args.loss == "focal":
+            self.loss_fn = FocalLoss()
+        else:
+            self.loss_fn = nn.CrossEntropyLoss()
         
         self.classifier = nn.Sequential(
             nn.Linear(hidden_size * 4, hidden_size),
@@ -41,11 +41,7 @@ class ReModel(RobertaPreTrainedModel): # BertPreTrainedModel
         token_type_ids=None,
         entity_position_embedding = None,
         position_ids=None,
-        head_mask=None,
-        inputs_embeds=None,
         labels=None,
-        output_attentions=None,
-        output_hidden_states=None,
         return_dict=None,
     ):
         return_dict = return_dict if return_dict is not None else self.config.use_return_dict
