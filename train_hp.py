@@ -6,11 +6,10 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
-import wandb
 import argparse
 from importlib import import_module
 from trainer import CustomTrainer
-
+import optuna
 
 def seed_everything(seed):
     torch.manual_seed(seed)
@@ -119,8 +118,8 @@ def train(args):
   model.parameters
   model.to(device)
 
-  wandb.init(project=args.project_name, entity=args.entity_name)
-  wandb.run.name = args.run_name
+  def model_init():
+    return model
   
   # 사용한 option 외에도 다양한 option들이 있습니다.
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
@@ -151,7 +150,7 @@ def train(args):
 
   if args.loss=="cross":
     trainer = Trainer(
-      model=model,                         # the instantiated 🤗 Transformers model to be trained
+      model=model_init(),                         # the instantiated 🤗 Transformers model to be trained
       args=training_args,                  # training arguments, defined above
       train_dataset=RE_train_dataset,         # training dataset
       eval_dataset=RE_dev_dataset,             # evaluation dataset
@@ -160,18 +159,27 @@ def train(args):
 
   elif args.loss=="focal":
     trainer = CustomTrainer(
-      model=model,                         # the instantiated 🤗 Transformers model to be trained
+      model=model_init(),                         # the instantiated 🤗 Transformers model to be trained
       args=training_args,                  # training arguments, defined above
       train_dataset=RE_train_dataset,         # training dataset
       eval_dataset=RE_dev_dataset,             # evaluation dataset
       compute_metrics=compute_metrics         # define metrics function
     )
+
+  def my_hp_space(trial):
+    return {
+        "learning_rate": trial.suggest_categorical("learning_rate",[1e-5, 3e-5, 5e-5]),
+        "per_device_train_batch_size": trial.suggest_categorical("per_device_train_batch_size", [16, 32]),
+        "num_train_epochs": trial.suggest_int("num_train_epochs", 3, 8),
+        "seed": trial.suggest_int("seed", 1, 42),
+    }
   
+  trainer.hyperparameter_search(
+    direction="maximize", # NOTE: or direction="minimize"
+    hp_space=my_hp_space, # NOTE: if you wanna use optuna, change it to optuna_hp_space
+  )
   # train model
   trainer.train()
-  wandb.finish()
-
-  model.save_pretrained(args.save_pretrained)
 
 def main(args):
   train(args)
@@ -209,7 +217,7 @@ if __name__ == '__main__':
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: Model_Test)")
   parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: growing_sesame)")
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: wandb)")
-  parser.add_argument("--metric_for_best_model", type=str, default="eval_loss", help=" (default: eval_loss)")
+  parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: eval_micro f1 score)")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--loss", type=str, default="cross", help="(default: cross)")
 

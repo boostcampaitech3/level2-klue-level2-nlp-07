@@ -1,10 +1,6 @@
-import pickle as pickle
-import os
 import pandas as pd
 import torch
-from torch.utils.data import Dataset, Subset, random_split
-from typing import Tuple
-from sklearn.model_selection import StratifiedShuffleSplit
+from torch.utils.data import Dataset
 
 
 class RE_Dataset(Dataset):
@@ -50,7 +46,7 @@ def tokenized_dataset_tapt(dataset, tokenizer):
       return_tensors="pt",
       padding=True,
       truncation=True,
-      max_length=256,
+      max_length=128,
       add_special_tokens=True,
       )
   return tokenized_sentences

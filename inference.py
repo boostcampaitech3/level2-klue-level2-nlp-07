@@ -1,10 +1,9 @@
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from torch.utils.data import DataLoader
 from modified_load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
-
 import pickle as pickle
 import numpy as np
 import argparse
@@ -16,7 +15,7 @@ def inference(model, tokenized_sent, device):
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
   """
-  dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
+  dataloader = DataLoader(tokenized_sent, batch_size=32, shuffle=False)
   model.eval()
   output_pred = []
   output_prob = []
@@ -105,6 +104,7 @@ def main(args):
   ## load my model
   MODEL_NAME = args.model_dir # model dir.
   model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+  model.resize_token_embeddings(len(tokenizer))
   model.parameters
   model.to(device)
 
@@ -123,7 +123,7 @@ def main(args):
   # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-  output.to_csv('./prediction/submission.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  output.to_csv('./prediction/'+args.file_name+'.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
 if __name__ == '__main__':
@@ -133,8 +133,9 @@ if __name__ == '__main__':
   parser.add_argument('--test_dataset', type=str, default="../dataset/test/test_data.csv")
   parser.add_argument('--model_dir', type=str, default="./best_model")
   parser.add_argument('--tokenize', type=str, default="punct")
-  parser.add_argument("--model", type=str, default="klue/roberta-large", help="model to train (default: klue/bert-base)")
-  
+  parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
+  parser.add_argument('--file_name', type=str, default="submission")
+
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="modified_load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
