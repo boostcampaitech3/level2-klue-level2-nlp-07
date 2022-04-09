@@ -81,7 +81,7 @@ def label_to_num(label):
 def train(args):
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=['#', '@'])
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -99,8 +99,8 @@ def train(args):
 
   # tokenizing dataset
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
-  tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
+  tokenized_train = tokenize(train_dataset, tokenizer, args.special_entity_type, args.preprocess)
+  tokenized_dev = tokenize(dev_dataset, tokenizer, args.special_entity_type, args.preprocess)
 
   # make dataset for pytorch.
   re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
@@ -146,7 +146,7 @@ def train(args):
     report_to=args.report_to,                                 # The list of integrations to report the results and logs to.
     metric_for_best_model=args.metric_for_best_model,         # Use in conjunction with load_best_model_at_end to specify the metric to use to compare two different models.
     gradient_accumulation_steps=args.gradient_accumulation_steps,  # Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
-    fp16=True                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
+    fp16=True,                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
   )
 
   if args.loss=="cross":
@@ -203,7 +203,8 @@ if __name__ == '__main__':
 
   # updated
   parser.add_argument('--run_name', type=str, default="baseline")
-  parser.add_argument('--tokenize', type=str, default="punct")
+  parser.add_argument('--special_entity_type', type=str, default="typed_entity")
+  parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
   parser.add_argument("--n_splits", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--test_size", type=float, default=0.1, help=" (default: 0.1)")
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: Model_Test)")

@@ -26,11 +26,12 @@ python train.py \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---tokenize punct \
+--special_entity_type default \
+--preprocess False \
 --n_splits 1 \
 --test_size 0.2 \
 --loss focal \
 --report_to wandb \
---project_name FAST_TEST \
+--project_name baseline \
 --entity_name growing_sesame \
 --run_name "roberta-large baseline sota"

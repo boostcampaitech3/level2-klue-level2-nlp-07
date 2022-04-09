@@ -1,6 +1,6 @@
 # How to use: type 'sh train.sh' on your CLI
 python train.py \
---load_data_filename load_data_hyunah \
+--load_data_filename load_data \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
 --load_data_class RE_Dataset \
@@ -18,17 +18,20 @@ python train.py \
 --per_device_train_batch_size 32 \
 --per_device_eval_batch_size 32 \
 --warmup_steps 500 \
---weight_decay 0.01 \
+--warmup_ratio 0.1 \
+--weight_decay 0.0 \
 --logging_dir ./logs \
---logging_steps 100 \
+--logging_steps 500 \
 --evaluation_strategy steps \
---eval_steps  500 \
+--eval_steps 500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---tokenize punct \
+--special_entity_type default \
+--preprocess False \
 --hidden_emb_no 4 \
 --n_splits 1 \
 --test_size 0.2 \
+--loss focal \
 --report_to wandb \
 --project_name 'Hidden Emb test' \
 --entity_name hyunah \
