@@ -1,11 +1,10 @@
 import pickle as pickle
-import os
 import pandas as pd
 import torch
 import random
 import sklearn
 import numpy as np
-from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import StratifiedShuffleSplit
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 import wandb
@@ -93,7 +92,6 @@ def train(args):
   seed_everything(args.seed)
   # load model and tokenizer
   MODEL_NAME = args.model
-  # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=["#", "@","^","*", "<S:PER>", "</S:PER>", "<S:ORG>", "</S:ORG>", "<O:DAT>", "</O:DAT>", "<O:LOC>", "</O:LOC>", "<O:NOH>", "</O:NOH>", "<O:ORG>", "</O:ORG>", "<O:PER>", "</O:PER>", "<O:POH>", "</O:POH>"])
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
@@ -132,13 +130,11 @@ def train(args):
 
   print(device)
   # setting model hyperparameter
-  # model_config =  AutoConfig.from_pretrained('./TAPT/adaptive/checkpoint-5500')
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
 
   model_config.classifier_dropout = 0.0 # gives dropout to classifier layer
 
-  # model =  AutoModelForSequenceClassification.from_pretrained('./TAPT/adaptive/checkpoint-5500', config=model_config)
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   model.resize_token_embeddings(len(tokenizer))
   model.parameters
