@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import AutoModel, AutoConfig, RobertaPreTrainedModel
 from torch.cuda.amp import autocast
-from loss import *
+from ..loss import *
 
 
 class ReModel(RobertaPreTrainedModel):
