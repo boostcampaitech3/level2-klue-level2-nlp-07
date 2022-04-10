@@ -88,7 +88,7 @@ def load_test_dataset(dataset_dir, tokenizer):
   test_label = list(map(int,test_dataset['label'].values))
   # tokenizing dataset
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_test = tokenize(test_dataset, tokenizer, args.special_entity_type, args.preprocess)
+  tokenized_test = tokenize(test_dataset, tokenizer, args.special_entity_type, args.preprocess, args.clue_question)
   return test_dataset['id'], tokenized_test, test_label
 
 def main(args):
@@ -132,8 +132,9 @@ if __name__ == '__main__':
   # model dir
   parser.add_argument('--test_dataset', type=str, default="../dataset/test/test_data.csv")
   parser.add_argument('--model_dir', type=str, default="./best_model")
-  parser.add_argument('--special_entity_type', type=str, default="typed_entity")
+  parser.add_argument('--special_entity_type', type=str, default="typed_entity", choices=["baseline", "punct", "entity", "typed_entity"], help="(default: typed_entity)")
   parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
+  parser.add_argument('--clue_type', type=str, default="question", choices=["question", "entity"], help="(default: question)")
   parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
   parser.add_argument('--file_name', type=str, default="submission")
 

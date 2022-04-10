@@ -26,8 +26,9 @@ python train.py \
 --eval_steps 500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---special_entity_type default \
---preprocess False \
+--special_entity_type typed_entity \
+--preprocess True \
+--clue_type question \
 --hidden_emb_no 4 \
 --n_splits 1 \
 --test_size 0.2 \

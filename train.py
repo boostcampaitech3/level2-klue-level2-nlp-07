@@ -105,8 +105,8 @@ def train(args):
 
   # tokenizing dataset
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_train = tokenize(train_dataset, tokenizer, args.special_entity_type, args.preprocess)
-  tokenized_dev = tokenize(dev_dataset, tokenizer, args.special_entity_type, args.preprocess)
+  tokenized_train = tokenize(train_dataset, tokenizer, args.special_entity_type, args.preprocess, args.clue_type)
+  tokenized_dev = tokenize(dev_dataset, tokenizer, args.special_entity_type, args.preprocess, args.clue_type)
 
   # make dataset for pytorch.
   re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
@@ -211,8 +211,10 @@ if __name__ == '__main__':
 
   # updated
   parser.add_argument('--run_name', type=str, default="baseline")
-  parser.add_argument('--special_entity_type', type=str, default="typed_entity")
+  parser.add_argument('--special_entity_type', type=str, default="typed_entity", choices=["baseline", "punct", "entity", "typed_entity"], help="(default: typed_entity)")
   parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
+  parser.add_argument('--clue_type', type=str, default="question", choices=["question", "entity"], help="(default: question)")
+
   parser.add_argument("--n_splits", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--test_size", type=float, default=0.1, help=" (default: 0.1)")
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: Model_Test)")

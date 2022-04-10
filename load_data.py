@@ -3,6 +3,8 @@ import torch
 from torch.utils.data import Dataset
 import re
 
+def preprocess(sent):
+  return re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
 
 class RE_Dataset(Dataset):
   """ Dataset 구성을 위한 class."""
@@ -74,128 +76,54 @@ def load_data(dataset_dir):
   
   return dataset
 
-def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
+
+def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess, clue_type):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
-  if special_entity_type == "punct":
-    sentences = list()
-    clue = list()
+  sentences = list()
+  clues = list()
     
-    for sent, sub, sub_start, sub_end, obj, obj_start, obj_end in zip(dataset['sentence'], 
-                                                                      dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], 
-                                                                      dataset['object_entity'],dataset['object_start'], dataset['object_end']):
-
-      if sub_start > obj_start:
-        sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
-        sent = sent[:obj_start-1] + " # " + sent[obj_start:obj_end+1] + " # " + sent[obj_end+1:]
-      else:
-        sent = sent[:obj_start-1] + " # " + sent[obj_start:obj_end+1] + " # " + sent[obj_end+1:]
-        sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
-    
-      if preprocess:
-        sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
-
-      question = '에서' + sub + '와(과) ' + obj + '은(는)?'
-
-      sent = re.sub(r"\"+", '\"', sent).strip()
-      sent = re.sub(r"\'+", "\'", sent).strip()
-      sent = re.sub(r"\s+", " ", sent).strip()
-      sentences.append(sent)
-      clue.append(question)
-    
-    tokenized_sentences = tokenizer(
-      sentences,
-      clue,
-      return_tensors="pt",
-      padding=True,
-      truncation=True,
-      max_length=256,
-      add_special_tokens=True,
-      ) 
-  
-  elif special_entity_type == "entity":
-    sentences = list()
-    clue = list()
-    
-    for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
+  for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
                                                                                       dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], dataset['subject_type'], 
                                                                                       dataset['object_entity'],dataset['object_start'], dataset['object_end'], dataset['object_type']):
-      
-      special_sub = "<S:%s> " % (sub_type.replace("'", "").strip()) + sub + " </S:%s> " % (sub_type.replace("'", "").strip())
-      special_obj = "<O:%s> " % (obj_type.replace("'", "").strip()) + obj + " </O:%s> " % (obj_type.replace("'", "").strip())
 
-      if sub_start > obj_start:
-          # subject token 달기
-          sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
-          
-          # object token 달기
-          sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
-      else:
-          # object token 달기
-          sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
-          
-          # subject token 달기
-          sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
-      
-      if preprocess:
-        sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
+    # Special Entity Token
+    if special_entity_type == "punct":
+      special_sub = " @ " + sub + " @ "
+      special_obj = " # " + obj + " # "
+    
+    elif special_entity_type == "entity":
+      special_sub = " <S:%s> " % (sub_type.replace("'", "").strip()) + sub + " </S:%s> " % (sub_type.replace("'", "").strip())
+      special_obj = " <O:%s> " % (obj_type.replace("'", "").strip()) + obj + " </O:%s> " % (obj_type.replace("'", "").strip())
 
-      question = '에서' + sub + '와(과) ' + obj + '은(는)?'
-
-      sent = re.sub(r"\"+", '\"', sent).strip()
-      sent = re.sub(r"\'+", "\'", sent).strip()
-      sent = re.sub(r"\s+", " ", sent).strip()
-
-      sentences.append(sent)
-      clue.append(question)
-      
-      
-    tokenized_sentences = tokenizer(
-      sentences,
-      clue,
-      return_tensors="pt",
-      padding=True,
-      truncation=True,
-      max_length=128, # default 256
-      add_special_tokens=True,
-    ) 
-  
-  elif special_entity_type == "typed_entity":
-    sentences = list()
-    clue = list()
-
-    for sent, sub, sub_start, sub_end, sub_type, obj, obj_start, obj_end, obj_type in zip(dataset['sentence'], 
-                                                                                        dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], dataset['subject_type'], 
-                                                                                        dataset['object_entity'],dataset['object_start'], dataset['object_end'], dataset['object_type']):
-
+    elif special_entity_type == "typed_entity":
       special_sub = " @ * %s * " % (sub_type.replace("'", "").strip()) + sub + " @ "
       special_obj = " # ^ %s ^ " % (obj_type.replace("'", "").strip()) + obj + " # "
 
+    if special_entity_type != "baseline":
       if sub_start > obj_start:
-          # subject token 달기
           sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
-          
-          # object token 달기
           sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
       else:
-          # object token 달기
           sent = sent[:int(obj_start)] + special_obj + sent[int(obj_end)+1:]
-          
-          # subject token 달기
           sent = sent[:int(sub_start)] + special_sub + sent[int(sub_end)+1:]
-      
-      if preprocess:
-        sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
 
-      question = '에서' + sub + '와(과) ' + obj + '은(는)?'
+    if preprocess:
+      sent = preprocess(sent)
 
-      sent = re.sub(r"\"+", '\"', sent).strip()
-      sent = re.sub(r"\'+", "\'", sent).strip()
-      sent = re.sub(r"\s+", " ", sent).strip()
+    if clue_type == "question":
+      clue = '에서' + sub + '와(과) ' + obj + '은(는)?'
+    else:
+      clue = sub + '[SEP]' + obj
 
-      sentences.append(sent)
-      clue.append(question)
-        
-    tokenized_sentences = tokenizer(
+    sent = re.sub(r"\"+", '\"', sent).strip()
+    sent = re.sub(r"\'+", "\'", sent).strip()
+    sent = re.sub(r"\s+", " ", sent).strip()
+
+    sentences.append(sent)
+    clues.append(clue)
+
+  if clue_type == "question":
+    return tokenizer(
       sentences,
       clue,
       return_tensors="pt",
@@ -203,26 +131,15 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
       truncation=True,
       max_length=256,
       add_special_tokens=True,
-    )
-              
-        
-  else: # baseline
-    concat_entity = []
-    
-    for sub, obj in zip(dataset['subject_entity'], dataset['object_entity']):
-      temp = ''
-      temp = sub + '[SEP]' + obj
-      concat_entity.append(temp)
-      
-    tokenized_sentences = tokenizer(
-        concat_entity,
-        list(dataset['sentence']),
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=256,
-        add_special_tokens=True,
-        )
-  
+    ) 
 
-  return tokenized_sentences
+  else:
+    return tokenizer(
+      clue,
+      sentences,
+      return_tensors="pt",
+      padding=True,
+      truncation=True,
+      max_length=256,
+      add_special_tokens=True,
+    ) 
