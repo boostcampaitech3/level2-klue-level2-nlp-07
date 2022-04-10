@@ -26,20 +26,17 @@ def get_entity_position_embedding(tokenizer, input_ids):
   pos_embeddings = []
 
   for y in input_ids:
-    ss_embedding = []
-    os_embedding = []
-    for j in range(0, len(y)):
-        if len(ss_embedding) + len(os_embedding) == 4:
-            break
-        if y[j] == sub_token_id:
-            ss_embedding.append(j)
-        if y[j] == obj_token_id:
-            os_embedding.append(j)
-        
-    pos = ss_embedding + os_embedding
-      
-    pos_embeddings.append(pos)
-    
+    pos = []
+      for j in range(0, len(y)):
+        if len(pos) == 4:
+          break
+        if y[j] == start_token_id:
+          pos.append(j)
+
+        if y[j] == end_token_id:
+          pos.append(j)
+      pos_embeddings.append(pos)
+
   return torch.tensor(pos_embeddings, dtype=torch.int)
 
 
@@ -108,12 +105,18 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
                                                                       dataset['subject_entity'], dataset['subject_start'], dataset['subject_end'], 
                                                                       dataset['object_entity'],dataset['object_start'], dataset['object_end']):
 
+      sent = list(sent)
       if sub_start > obj_start:
-        sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
-        sent = sent[:obj_start-1] + " # " + sent[obj_start:obj_end+1] + " # " + sent[obj_end+1:]
+        sent.insert(sub_end + 1, ' @ ')
+        sent.insert(sub_start, ' @ ')
+        sent.insert(obj_end + 1, ' # ')
+        sent.insert(obj_start, ' # ')
       else:
-        sent = sent[:obj_start-1] + " # " + sent[obj_start:obj_end+1] + " # " + sent[obj_end+1:]
-        sent = sent[:sub_start-1] + " @ " + sent[sub_start:sub_end+1] + " @ " + sent[sub_end+1:]
+        sent.insert(obj_end + 1, ' # ')
+        sent.insert(obj_start, ' # ')
+        sent.insert(sub_end + 1, ' @ ')
+        sent.insert(sub_start, ' @ ')
+      sent = ''.join(sent)
     
       if preprocess:
         sent = re.sub("[^a-zA-Z가-힣0-9\@\#\<\>\:\/\"\'\,\.\?\!\-\+\%\$\(\)\~\u2e80-\u2eff\u31c0-\u31ef\u3200-\u32ff\u3400-\u4dbf\u4e00-\u9fbf\uf900-\ufaff ]", "", sent)
