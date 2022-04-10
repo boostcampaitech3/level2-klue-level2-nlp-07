@@ -99,7 +99,7 @@ def main(args):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
   Tokenizer_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, add_special_token=['#', '@'])
+  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, additional_special_tokens=['#', '@'])
 
   ## load my model
   MODEL_NAME = args.model_dir # model dir.

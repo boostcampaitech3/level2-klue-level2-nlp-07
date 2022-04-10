@@ -1,4 +1,5 @@
 import pickle as pickle
+import pandas as pd
 import torch
 import random
 import sklearn
@@ -77,7 +78,6 @@ def label_to_num(label):
   
   return num_label
 
-
 def train(args):
   # load model and tokenizer
   MODEL_NAME = args.model
@@ -92,7 +92,13 @@ def train(args):
   for train_idx, test_idx in split.split(dataset, dataset["label"]):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
-
+  
+  if args.use_augmentation: # added for augmentation
+    dev_index = dev_dataset['id'].tolist() # added for augmentation
+    aug_dataset1 = load('../dataset/train/augmented_phonologicalProcess.csv')
+    aug_dataset2 = load('../dataset/train/augmented_vowelNoise.csv')
+    temp = pd.concat([train_dataset, aug_dataset1, aug_dataset2]).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
+    train_dataset = temp[~temp['id'].isin(dev_index)]
 
   train_label = label_to_num(train_dataset['label'].values)
   dev_label = label_to_num(dev_dataset['label'].values)
@@ -113,6 +119,8 @@ def train(args):
   # setting model hyperparameter
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = args.num_labels
+
+  model_config.classifier_dropout = args.dropout # gives dropout to classifier layer
 
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   model.resize_token_embeddings(len(tokenizer))
@@ -213,12 +221,14 @@ if __name__ == '__main__':
   parser.add_argument("--metric_for_best_model", type=str, default="eval_loss", help=" (default: eval_loss)")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--loss", type=str, default="cross", help="(default: cross)")
+  parser.add_argument("--dropout", type=float, default=0.1, help=" (default: 0.1)")
 
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
+  parser.add_argument('--load_data_func_tokenized_train', type=str, default="tokenized_dataset")
   
   args = parser.parse_args()
   print(args)

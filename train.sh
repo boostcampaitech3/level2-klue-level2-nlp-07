@@ -1,14 +1,17 @@
 # How to use: type 'sh train.sh' on your CLI
 python train.py \
---load_data_filename load_data \
+--load_data_filename load_data_junejae \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
+--load_data_func_tokenized_train tokenized_dataset \
 --load_data_class RE_Dataset \
 --metric_for_best_model 'eval_loss' \
 --gradient_accumulation_steps 1 \
+--use_augmentation True \
+--aug_data ../dataset/train/augmented_phonologicalProcess.csv \
 --seed 42 \
 --model klue/roberta-large \
---train_data ../dataset/train/train.csv \
+--train_data ../dataset/train/train_finalCorrection.csv \
 --num_labels 30 \
 --output_dir ./results \
 --save_total_limit 5 \
