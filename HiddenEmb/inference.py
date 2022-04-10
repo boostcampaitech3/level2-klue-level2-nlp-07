@@ -1,21 +1,22 @@
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
-from modified_load_data import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
+
 import pickle as pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
 from importlib import import_module
+from re_model import ReModel
 
 def inference(model, tokenized_sent, device):
   """
     test dataset을 DataLoader로 만들어 준 후,
     batch_size로 나눠 model이 예측 합니다.
   """
-  dataloader = DataLoader(tokenized_sent, batch_size=32, shuffle=False)
+  dataloader = DataLoader(tokenized_sent, batch_size=16, shuffle=False)
   model.eval()
   output_pred = []
   output_prob = []
@@ -24,7 +25,8 @@ def inference(model, tokenized_sent, device):
       outputs = model(
           input_ids=data['input_ids'].to(device),
           attention_mask=data['attention_mask'].to(device),
-          token_type_ids=data['token_type_ids'].to(device)
+          token_type_ids=data['token_type_ids'].to(device),
+          entity_position_embedding=data['entity_position_embedding'].to(device)
           )
     logits = outputs[0]
     prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
@@ -48,36 +50,6 @@ def num_to_label(label):
   
   return origin_label
 
-def ensemble_probs(filenames, weights=None, NUM_CLASS=30, output_filename="./ensemble.csv"):
-    '''
-    parameter:
-        filenames (list) = ['./output.csv', './submission.csv']
-        weights (list) = [0.7, 0.3]
-        NUM_CLASS (int) = 30 [default]
-        output_filename (str) = "./ensemble.csv" [default]
-    output:
-        soft-voting한 output_filename file 생성
-    '''
-    if not weights:
-        weights = [1] * len(filenames)
-
-    output_prob = []
-    for fname, w in zip(filenames, weights):
-        Mat = np.array(eval(','.join(list(pd.read_csv(fname)['probs']))))
-        output_prob.append(w * Mat)
-    
-    if not weights:
-        output_prob = np.mean(output_prob, 0).tolist()
-    else:
-        output_prob = np.sum(output_prob, 0).tolist()
-
-    test_id = pd.read_csv(filenames[0])['id']
-    pred_answer = num_to_label(np.argmax(output_prob, axis=1))
-
-    output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
-    output.to_csv(output_filename, index=False)
-    print('-- done --')
-
 def load_test_dataset(dataset_dir, tokenizer):
   """
     test dataset을 불러온 후,
@@ -86,9 +58,10 @@ def load_test_dataset(dataset_dir, tokenizer):
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
   test_dataset = load(dataset_dir)
   test_label = list(map(int,test_dataset['label'].values))
+  
   # tokenizing dataset
   tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_test = tokenize(test_dataset, tokenizer, args.special_entity_type, args.preprocess)
+  tokenized_test = tokenize(test_dataset, tokenizer, args.tokenize)
   return test_dataset['id'], tokenized_test, test_label
 
 def main(args):
@@ -99,12 +72,12 @@ def main(args):
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
   Tokenizer_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, additional_special_tokens=['#', '@'])
+  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME, add_special_token=['#', '@'])
 
   ## load my model
-  MODEL_NAME = args.model_dir # model dir.
-  model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
-  model.resize_token_embeddings(len(tokenizer))
+  MODEL_NAME = args.model_dir
+  model = ReModel(args, tokenizer=tokenizer)
+  model.load_state_dict(torch.load(MODEL_NAME, map_location=device))
   model.parameters
   model.to(device)
 
@@ -123,7 +96,7 @@ def main(args):
   # 아래 directory와 columns의 형태는 지켜주시기 바랍니다.
   output = pd.DataFrame({'id':test_id,'pred_label':pred_answer,'probs':output_prob,})
 
-  output.to_csv('./prediction/'+args.file_name+'.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
+  output.to_csv('./prediction/submission.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
 if __name__ == '__main__':
@@ -135,10 +108,10 @@ if __name__ == '__main__':
   parser.add_argument('--special_entity_type', type=str, default="typed_entity")
   parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
   parser.add_argument("--model", type=str, default="klue/bert-base", help="model to train (default: klue/bert-base)")
-  parser.add_argument('--file_name', type=str, default="submission")
+  parser.add_argument("--hidden_emb_no", type=int, default=4, help=" (default: )")
 
   # load_data module
-  parser.add_argument('--load_data_filename', type=str, default="modified_load_data")
+  parser.add_argument('--load_data_filename', type=str, default="load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")

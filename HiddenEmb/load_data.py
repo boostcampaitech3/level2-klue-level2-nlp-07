@@ -3,7 +3,6 @@ import torch
 from torch.utils.data import Dataset
 import re
 
-
 class RE_Dataset(Dataset):
   """ Dataset 구성을 위한 class."""
   def __init__(self, pair_dataset, labels):
@@ -18,7 +17,32 @@ class RE_Dataset(Dataset):
   def __len__(self):
     return len(self.labels)
 
+def get_entity_position_embedding(tokenizer, input_ids):
+  special_token2id = {k:v for k,v in zip(tokenizer.all_special_tokens, tokenizer.all_special_ids)}
+
+  sub_token_id = special_token2id['@']
+  obj_token_id = special_token2id['#']
+  
+  pos_embeddings = []
+
+  for y in input_ids:
+    ss_embedding = []
+    os_embedding = []
+    for j in range(0, len(y)):
+        if len(ss_embedding) + len(os_embedding) == 4:
+            break
+        if y[j] == sub_token_id:
+            ss_embedding.append(j)
+        if y[j] == obj_token_id:
+            os_embedding.append(j)
+        
+    pos = ss_embedding + os_embedding
+      
+    pos_embeddings.append(pos)
     
+  return torch.tensor(pos_embeddings, dtype=torch.int)
+
+
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
   subject_entity = []
@@ -111,6 +135,8 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
       max_length=256,
       add_special_tokens=True,
       ) 
+    
+    tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
   
   elif special_entity_type == "entity":
     sentences = list()
@@ -155,9 +181,11 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
       return_tensors="pt",
       padding=True,
       truncation=True,
-      max_length=128, # default 256
+      max_length=256,
       add_special_tokens=True,
     ) 
+
+    tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
   
   elif special_entity_type == "typed_entity":
     sentences = list()
@@ -204,6 +232,8 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
       max_length=256,
       add_special_tokens=True,
     )
+
+    tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
               
         
   else: # baseline
@@ -215,14 +245,15 @@ def tokenized_dataset(dataset, tokenizer, special_entity_type, preprocess):
       concat_entity.append(temp)
       
     tokenized_sentences = tokenizer(
-        concat_entity,
-        list(dataset['sentence']),
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=256,
-        add_special_tokens=True,
-        )
+      concat_entity,
+      list(dataset['sentence']),
+      return_tensors="pt",
+      padding=True,
+      truncation=True,
+      max_length=256,
+      add_special_tokens=True,
+      )
   
-
+    tokenized_sentences['entity_position_embedding'] = get_entity_position_embedding(tokenizer, tokenized_sentences['input_ids'])
+  
   return tokenized_sentences

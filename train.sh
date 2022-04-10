@@ -14,13 +14,14 @@ python train.py \
 --train_data ../dataset/train/train_finalCorrection.csv \
 --num_labels 30 \
 --output_dir ./results \
---save_total_limit 10 \
+--save_total_limit 5 \
 --save_steps 500 \
---num_train_epochs 2 \
---learning_rate 1e-5 \
---per_device_train_batch_size 34 \
---per_device_eval_batch_size 64 \
+--num_train_epochs 3 \
+--learning_rate 2e-5 \
+--per_device_train_batch_size 32 \
+--per_device_eval_batch_size 32 \
 --warmup_steps 500 \
+--warmup_ratio 0.1 \
 --weight_decay 0.0 \
 --logging_dir ./logs \
 --logging_steps 500 \
@@ -28,13 +29,12 @@ python train.py \
 --eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---tokenize punct \
+--special_entity_type default \
+--preprocess False \
 --n_splits 1 \
 --test_size 0.2 \
+--loss focal \
 --report_to wandb \
---project_name [junejae]eval_aug_test \
+--project_name baseline \
 --entity_name growing_sesame \
---run_name robertaL_batch34_spellNoise_qustionFront_1e-5_warmup0.0_epoch2_st_sentenceToken_withClue_dropout0.0_decay0.0_corrected_focal_minQuestion3
-
-# --train_data ../dataset/train/train.csv \
-# --train_data ../dataset/train/train_finalCorrection.csv \
+--run_name "roberta-large baseline sota"
