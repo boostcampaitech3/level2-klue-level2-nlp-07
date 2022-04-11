@@ -1,4 +1,4 @@
-# KLUE 대회 랩업리포트
+# BoostCamp AI Tech: KLUE Relation Extraction Competition
 
 ![Badge](https://img.shields.io/badge/Public-1st-00A82D?style=for-the-badge)
 ![Badge](https://img.shields.io/badge/Private-2nd-A5CD39?style=for-the-badge)
