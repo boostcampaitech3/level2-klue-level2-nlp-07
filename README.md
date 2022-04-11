@@ -3,7 +3,7 @@
 ![Badge](https://img.shields.io/badge/Public-1st-00A82D?style=for-the-badge)
 ![Badge](https://img.shields.io/badge/Private-2nd-A5CD39?style=for-the-badge)
 
-[발표자료]("https://github.com/boostcampaitech3/level2-klue-level2-nlp-07//Images/nlp07_KLUE_발표.pdf")
+[발표자료](https://github.com/boostcampaitech3/level2-klue-level2-nlp-07/Images/nlp07_KLUE_발표.pdf)
 
 <br/>
 <br/>
