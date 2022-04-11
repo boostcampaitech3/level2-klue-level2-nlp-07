@@ -1,5 +1,4 @@
 import pickle as pickle
-import pandas as pd
 import torch
 import random
 import sklearn
@@ -10,7 +9,7 @@ from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassifi
 import wandb
 import argparse
 from importlib import import_module
-from trainer import CustomTrainer
+from ..trainer import CustomTrainer
 
 
 def seed_everything(seed):
@@ -78,10 +77,11 @@ def label_to_num(label):
   
   return num_label
 
+
 def train(args):
   # load model and tokenizer
   MODEL_NAME = args.model
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, additional_special_tokens=['#', '@'])
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME, add_special_token=['#', '@'])
 
   # load dataset
   load = getattr(import_module(args.load_data_filename), args.load_data_func_load)
@@ -89,97 +89,88 @@ def train(args):
 
   split = StratifiedShuffleSplit(n_splits=args.n_splits, test_size=args.test_size, random_state=args.seed)
 
-  for train_idx, test_idx in split.split(dataset, dataset["label"]):
+  for idx, (train_idx, test_idx) in enumerate(split.split(dataset, dataset["label"])):
       train_dataset = dataset.loc[train_idx]
       dev_dataset = dataset.loc[test_idx]
-  
-  if args.use_augmentation: # added for augmentation
-    dev_index = dev_dataset['id'].tolist() # added for augmentation
-    aug_dataset1 = load('../dataset/train/augmented_phonologicalProcess.csv')
-    aug_dataset2 = load('../dataset/train/augmented_vowelNoise.csv')
-    temp = pd.concat([train_dataset, aug_dataset1, aug_dataset2]).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
-    train_dataset = temp[~temp['id'].isin(dev_index)]
 
-  train_label = label_to_num(train_dataset['label'].values)
-  dev_label = label_to_num(dev_dataset['label'].values)
+      train_label = label_to_num(train_dataset['label'].values)
+      dev_label = label_to_num(dev_dataset['label'].values)
 
-  # tokenizing dataset
-  tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
-  tokenized_train = tokenize(train_dataset, tokenizer, args.special_entity_type, args.preprocess, args.clue_type)
-  tokenized_dev = tokenize(dev_dataset, tokenizer, args.special_entity_type, args.preprocess, args.clue_type)
+      # tokenizing dataset
+      tokenize = getattr(import_module(args.load_data_filename), args.load_data_func_tokenized)
+      tokenized_train = tokenize(train_dataset, tokenizer, args.tokenize)
+      tokenized_dev = tokenize(dev_dataset, tokenizer, args.tokenize)
 
-  # make dataset for pytorch.
-  re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
-  RE_train_dataset = re_data(tokenized_train, train_label)
-  RE_dev_dataset = re_data(tokenized_dev, dev_label)
+      # make dataset for pytorch.
+      re_data = getattr(import_module(args.load_data_filename), args.load_data_class)
+      RE_train_dataset = re_data(tokenized_train, train_label)
+      RE_dev_dataset = re_data(tokenized_dev, dev_label)
 
-  device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+      device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-  print(device)
-  # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
-  model_config.num_labels = args.num_labels
+      print(device)
+      # setting model hyperparameter
+      model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+      model_config.num_labels = args.num_labels
 
-  model_config.classifier_dropout = args.dropout # gives dropout to classifier layer
+      model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+      model.resize_token_embeddings(len(tokenizer))
+      model.parameters
+      model.to(device)
 
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
-  model.resize_token_embeddings(len(tokenizer))
-  model.parameters
-  model.to(device)
+      wandb.init(project=args.project_name, entity=args.entity_name)
+      wandb.run.name = args.run_name + str(idx)
+      
+      # 사용한 option 외에도 다양한 option들이 있습니다.
+      # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
+      training_args = TrainingArguments(
+        output_dir=args.output_dir,                     # output directory
+        save_total_limit=args.save_total_limit,         # number of total save model.
+        save_steps=args.save_steps,                     # model saving step.
+        num_train_epochs=args.num_train_epochs,         # total number of training epochs
+        learning_rate=args.learning_rate,               # learning rate
+        per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
+        per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
+        warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
+        warmup_ratio=args.warmup_ratio,                # Ratio of total training steps used for a linear warmup from 0 to learning_rate.
+        weight_decay=args.weight_decay,                # strength of weight decay
+        logging_dir=args.logging_dir,                  # directory for storing logs
+        logging_steps=args.logging_steps,              # log saving step.
+        evaluation_strategy=args.evaluation_strategy,  # evaluation strategy to adopt during training
+                                                        # `no`: No evaluation during training.
+                                                        # `steps`: Evaluate every `eval_steps`.
+                                                        # `epoch`: Evaluate every end of epoch.
+        eval_steps = args.eval_steps,                             # evaluation step.
+        load_best_model_at_end = args.load_best_model_at_end,     # Whether or not to load the best model found during training at the end of training.
+        report_to=args.report_to,                                 # The list of integrations to report the results and logs to.
+        metric_for_best_model=args.metric_for_best_model,         # Use in conjunction with load_best_model_at_end to specify the metric to use to compare two different models.
+        gradient_accumulation_steps=args.gradient_accumulation_steps,  # Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
+        fp16=True                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
+      )
 
-  wandb.init(project=args.project_name, entity=args.entity_name)
-  wandb.run.name = args.run_name
-  
-  # 사용한 option 외에도 다양한 option들이 있습니다.
-  # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-  training_args = TrainingArguments(
-    output_dir=args.output_dir,                     # output directory
-    save_total_limit=args.save_total_limit,         # number of total save model.
-    save_steps=args.save_steps,                     # model saving step.
-    num_train_epochs=args.num_train_epochs,         # total number of training epochs
-    learning_rate=args.learning_rate,               # learning rate
-    per_device_train_batch_size=args.per_device_train_batch_size,  # batch size per device during training
-    per_device_eval_batch_size=args.per_device_eval_batch_size,   # batch size for evaluation
-    warmup_steps=args.warmup_steps,                # number of warmup steps for learning rate scheduler
-    warmup_ratio=args.warmup_ratio,                # Ratio of total training steps used for a linear warmup from 0 to learning_rate.
-    weight_decay=args.weight_decay,                # strength of weight decay
-    logging_dir=args.logging_dir,                  # directory for storing logs
-    logging_steps=args.logging_steps,              # log saving step.
-    evaluation_strategy=args.evaluation_strategy,  # evaluation strategy to adopt during training
-                                                    # `no`: No evaluation during training.
-                                                    # `steps`: Evaluate every `eval_steps`.
-                                                    # `epoch`: Evaluate every end of epoch.
-    eval_steps = args.eval_steps,                             # evaluation step.
-    load_best_model_at_end = args.load_best_model_at_end,     # Whether or not to load the best model found during training at the end of training.
-    report_to=args.report_to,                                 # The list of integrations to report the results and logs to.
-    metric_for_best_model=args.metric_for_best_model,         # Use in conjunction with load_best_model_at_end to specify the metric to use to compare two different models.
-    gradient_accumulation_steps=args.gradient_accumulation_steps,  # Number of updates steps to accumulate the gradients for, before performing a backward/update pass.
-    fp16=True,                # Whether to use fp16 16-bit (mixed) precision training instead of 32-bit training.     
-  )
+      if args.loss=="cross":
+        trainer = Trainer(
+          model=model,                         # the instantiated 🤗 Transformers model to be trained
+          args=training_args,                  # training arguments, defined above
+          train_dataset=RE_train_dataset,         # training dataset
+          eval_dataset=RE_dev_dataset,             # evaluation dataset
+          compute_metrics=compute_metrics         # define metrics function
+        )
 
-  if args.loss=="cross":
-    trainer = Trainer(
-      model=model,                         # the instantiated 🤗 Transformers model to be trained
-      args=training_args,                  # training arguments, defined above
-      train_dataset=RE_train_dataset,         # training dataset
-      eval_dataset=RE_dev_dataset,             # evaluation dataset
-      compute_metrics=compute_metrics         # define metrics function
-    )
+      elif args.loss=="focal":
+        trainer = CustomTrainer(
+          model=model,                         # the instantiated 🤗 Transformers model to be trained
+          args=training_args,                  # training arguments, defined above
+          train_dataset=RE_train_dataset,         # training dataset
+          eval_dataset=RE_dev_dataset,             # evaluation dataset
+          compute_metrics=compute_metrics         # define metrics function
+        )
+      
+      # train model
+      trainer.train()
+      wandb.finish()
 
-  elif args.loss=="focal":
-    trainer = CustomTrainer(
-      model=model,                         # the instantiated 🤗 Transformers model to be trained
-      args=training_args,                  # training arguments, defined above
-      train_dataset=RE_train_dataset,         # training dataset
-      eval_dataset=RE_dev_dataset,             # evaluation dataset
-      compute_metrics=compute_metrics         # define metrics function
-    )
-  
-  # train model
-  trainer.train()
-  wandb.finish()
-
-  model.save_pretrained(args.save_pretrained)
+      model.save_pretrained(args.save_pretrained)
 
 def main(args):
   train(args)
@@ -199,7 +190,7 @@ if __name__ == '__main__':
   parser.add_argument("--learning_rate", type=float, default=5e-5, help="learning rate (default: 5e-5)")
   parser.add_argument("--per_device_train_batch_size", type=int, default=16, help=" (default: 16)")
   parser.add_argument("--per_device_eval_batch_size", type=int, default=16, help=" (default: 16)")
-  parser.add_argument("--warmup_steps", type=int, default=500, help=" (default: 500)")
+  parser.add_argument("--warmup_steps", type=float, default=500, help=" (default: 500)")
   parser.add_argument("--warmup_ratio", type=float, default=0.1, help=" (default: 0.1")
   parser.add_argument("--weight_decay", type=float, default=0.01, help=" (default: 0.01)")
   parser.add_argument("--logging_dir", type=str, default="./logs", help=" (default: ./logs)")
@@ -211,26 +202,21 @@ if __name__ == '__main__':
 
   # updated
   parser.add_argument('--run_name', type=str, default="baseline")
-  parser.add_argument('--special_entity_type', type=str, default="typed_entity", choices=["baseline", "punct", "entity", "typed_entity"], help="(default: typed_entity)")
-  parser.add_argument('--preprocess', type=bool, default=False, help="apply preprocess")
-  parser.add_argument('--clue_type', type=str, default="question", choices=["question", "entity"], help="(default: question)")
-
+  parser.add_argument('--tokenize', type=str, default="punct")
   parser.add_argument("--n_splits", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--test_size", type=float, default=0.1, help=" (default: 0.1)")
   parser.add_argument("--project_name", type=str, default="Model_Test", help=" (default: Model_Test)")
   parser.add_argument("--entity_name", type=str, default="growing_sesame", help=" (default: growing_sesame)")
   parser.add_argument("--report_to", type=str, default="wandb", help=" (default: wandb)")
-  parser.add_argument("--metric_for_best_model", type=str, default="eval_loss", help=" (default: eval_loss)")
+  parser.add_argument("--metric_for_best_model", type=str, default="eval_micro f1 score", help=" (default: eval_micro f1 score)")
   parser.add_argument("--gradient_accumulation_steps", type=int, default=1, help=" (default: 1)")
   parser.add_argument("--loss", type=str, default="cross", help="(default: cross)")
-  parser.add_argument("--dropout", type=float, default=0.1, help=" (default: 0.1)")
 
   # load_data module
   parser.add_argument('--load_data_filename', type=str, default="load_data")
   parser.add_argument('--load_data_func_load', type=str, default="load_data")
   parser.add_argument('--load_data_func_tokenized', type=str, default="tokenized_dataset")
   parser.add_argument('--load_data_class', type=str, default="RE_Dataset")
-  parser.add_argument('--load_data_func_tokenized_train', type=str, default="tokenized_dataset")
   
   args = parser.parse_args()
   print(args)

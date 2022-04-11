@@ -4,7 +4,7 @@ python train.py \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
 --load_data_class RE_Dataset \
---metric_for_best_model 'eval loss' \
+--metric_for_best_model 'eval_loss' \
 --gradient_accumulation_steps 1 \
 --seed 42 \
 --model klue/roberta-large \
@@ -19,21 +19,18 @@ python train.py \
 --per_device_eval_batch_size 32 \
 --warmup_steps 500 \
 --warmup_ratio 0.1 \
---weight_decay 0.0 \
+--weight_decay 0.01 \
 --logging_dir ./logs \
 --logging_steps 500 \
 --evaluation_strategy steps \
---eval_steps 500 \
+--eval_steps  500 \
 --load_best_model_at_end True \
 --save_pretrained ./best_model \
---special_entity_type typed_entity \
---preprocess True \
---clue_type question \
---hidden_emb_no 4 \
+--tokenize punct \
 --n_splits 1 \
 --test_size 0.2 \
---loss focal \
+--loss cross \
 --report_to wandb \
---project_name 'Hidden Emb test' \
---entity_name hyunah \
---run_name class2 
+--project_name TAPT \
+--entity_name growing_sesame \
+--run_name "roberta-large TAPT"

@@ -3,8 +3,9 @@ python inference.py \
 --test_dataset ../dataset/test/test_data.csv \
 --model  klue/roberta-large \
 --model_dir ./results/checkpoint-4000 \
---special_entity_type default \
---preprocess False \
+--special_entity_type typed_entity \
+--preprocess True \
+--clue_type question \
 --load_data_filename load_data \
 --load_data_func_load load_data \
 --load_data_func_tokenized tokenized_dataset \
